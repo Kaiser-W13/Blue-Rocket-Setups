@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PC Setup Wizard & App Bundle Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Offline & Network Resilience Banner -->
+    <div id="network-banner" class="network-banner hidden">
+        <i class="fa-solid fa-wifi"></i>
+        <span>Connection unstable. Don't worry, your selections and generated scripts are stored locally!</span>
+    </div>
+
+    <!-- Header / Navbar -->
+    <header class="app-header">
+        <div class="container header-container">
+            <div class="logo">
+                <i class="fa-solid fa-laptop-code logo-icon"></i>
+                <div class="logo-text">
+                    <h1>AutoSetup PC</h1>
+                    <span class="subtitle">Human-Centered Software & Driver Bundle Builder</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="reset-btn" class="btn btn-outline-danger" title="Clear saved choices and start fresh">
+                    <i class="fa-solid fa-rotate-left"></i> Reset All
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container main-content">
+        <!-- Progress Stepper -->
+        <nav class="stepper-nav" aria-label="Setup Steps">
+            <div class="step-item active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Choose Preset</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">GPU Drivers</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">Select Apps</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label">Get Installer</div>
+            </div>
+        </nav>
+
+        <!-- STEP 1: PRESETS -->
+        <section id="step-1" class="wizard-step active">
+            <div class="step-header">
+                <h2>Step 1: How will you use this PC?</h2>
+                <p>Pick a preset to automatically select recommended software, or skip to customize from scratch.</p>
+            </div>
+            <div class="preset-grid">
+                <div class="preset-card" data-preset="office">
+                    <div class="preset-icon"><i class="fa-solid fa-briefcase"></i></div>
+                    <h3>Office & Work</h3>
+                    <p>Essential productivity tools, PDF readers, cloud storage, and messaging software.</p>
+                    <span class="badge">Chrome, Zoom, Adobe Reader, Slack, LibreOffice</span>
+                </div>
+                <div class="preset-card" data-preset="gaming">
+                    <div class="preset-icon"><i class="fa-solid fa-gamepad"></i></div>
+                    <h3>Gaming</h3>
+                    <p>Game launchers, voice chat, driver utilities, and performance monitoring software.</p>
+                    <span class="badge">Steam, Epic Games, Discord, GeForce/Radeon, MSI Afterburner</span>
+                </div>
+                <div class="preset-card" data-preset="creator">
+                    <div class="preset-icon"><i class="fa-solid fa-photo-film"></i></div>
+                    <h3>Content Creation</h3>
+                    <p>Video editing, audio recording, graphic design, and screen capturing tools.</p>
+                    <span class="badge">OBS Studio, Blender, GIMP, DaVinci Resolve, Audacity</span>
+                </div>
+                <div class="preset-card" data-preset="developer">
+                    <div class="preset-icon"><i class="fa-solid fa-code"></i></div>
+                    <h3>Developer</h3>
+                    <p>Code editors, terminals, runtime environments, Git tools, and API clients.</p>
+                    <span class="badge">VS Code, Git, Docker Desktop, NodeJS, Postman, Python</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 2: GPU DRIVERS -->
+        <section id="step-2" class="wizard-step">
+            <div class="step-header">
+                <h2>Step 2: Graphics Card (GPU) Setup</h2>
+                <p>Graphics drivers ensure smooth gaming, video editing, and screen output.</p>
+            </div>
+            
+            <div class="gpu-selection-container">
+                <div class="gpu-options">
+                    <label class="gpu-radio-card">
+                        <input type="radio" name="gpu" value="nvidia" id="gpu-nvidia">
+                        <div class="card-body">
+                            <i class="fa-brands fa-nvidia gpu-icon nvidia"></i>
+                            <h4>NVIDIA GeForce</h4>
+                            <p>Includes GeForce Experience / NVIDIA App</p>
+                        </div>
+                    </label>
+
+                    <label class="gpu-radio-card">
+                        <input type="radio" name="gpu" value="amd" id="gpu-amd">
+                        <div class="card-body">
+                            <i class="fa-solid fa-microchip gpu-icon amd"></i>
+                            <h4>AMD Radeon</h4>
+                            <p>Includes AMD Software Adrenalin Edition</p>
+                        </div>
+                    </label>
+
+                    <label class="gpu-radio-card">
+                        <input type="radio" name="gpu" value="intel" id="gpu-intel">
+                        <div class="card-body">
+                            <i class="fa-solid fa-microchip gpu-icon intel"></i>
+                            <h4>Intel Arc / Iris</h4>
+                            <p>Includes Intel Graphics Command Center</p>
+                        </div>
+                    </label>
+
+                    <label class="gpu-radio-card">
+                        <input type="radio" name="gpu" value="none" id="gpu-none" checked>
+                        <div class="card-body">
+                            <i class="fa-solid fa-circle-question gpu-icon generic"></i>
+                            <h4>Skip / Basic</h4>
+                            <p>Use standard Windows Update display driver</p>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Guided Helper Collapsible -->
+                <div class="gpu-guide-card">
+                    <button id="toggle-gpu-guide-btn" class="btn-guide-toggle">
+                        <i class="fa-solid fa-circle-info"></i> Not sure which GPU you have? Click here for a 10-second guide.
+                        <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                    </button>
+                    <div id="gpu-guide-content" class="gpu-guide-content hidden">
+                        <ol class="guide-steps">
+                            <li>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Esc</kbd> to open Windows <strong>Task Manager</strong>.</li>
+                            <li>Click on the <strong>Performance</strong> tab on the left.</li>
+                            <li>Scroll down to find <strong>GPU 0</strong> (or <strong>GPU 1</strong>). The brand name (NVIDIA, AMD, or Intel) will be listed at the top right!</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- STEP 3: APP SELECTION GRID -->
+        <section id="step-3" class="wizard-step">
+            <div class="step-header">
+                <h2>Step 3: Select Applications</h2>
+                <p>Choose individual apps to add or remove. Search or filter by category.</p>
+            </div>
+
+            <div class="grid-controls">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="app-search" placeholder="Search apps (e.g. Chrome, Discord, Python)...">
+                </div>
+                <div class="category-filters" id="category-filters">
+                    <button class="filter-btn active" data-cat="all">All</button>
+                    <button class="filter-btn" data-cat="browsers">Browsers</button>
+                    <button class="filter-btn" data-cat="gaming">Gaming</button>
+                    <button class="filter-btn" data-cat="media">Media & Editing</button>
+                    <button class="filter-btn" data-cat="developer">Developer</button>
+                    <button class="filter-btn" data-cat="utilities">Utilities</button>
+                </div>
+            </div>
+
+            <div class="apps-grid" id="apps-grid">
+                <!-- Dynamically generated via JavaScript -->
+            </div>
+        </section>
+
+        <!-- STEP 4: GENERATE SCRIPT BUNDLE -->
+        <section id="step-4" class="wizard-step">
+            <div class="step-header">
+                <h2>Step 4: Download & Run Installer Script</h2>
+                <p>We've combined all your selections into a clean, automated Windows installer bundle.</p>
+            </div>
+
+            <div class="summary-box">
+                <div class="summary-stats">
+                    <div class="stat">
+                        <span class="stat-value" id="total-selected-count">0</span>
+                        <span class="stat-label">Applications Selected</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="estimated-download-size">~0 MB</span>
+                        <span class="stat-label">Est. Download Size</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="selected-gpu-name">None</span>
+                        <span class="stat-label">GPU Driver Selected</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="script-output-container">
+                <div class="tab-header">
+                    <button class="tab-btn active" data-format="ps1"><i class="fa-solid fa-terminal"></i> PowerShell (.ps1)</button>
+                    <button class="tab-btn" data-format="bat"><i class="fa-solid fa-file-code"></i> Batch (.bat)</button>
+                    <button class="tab-btn" data-format="cmd"><i class="fa-solid fa-code"></i> Direct CMD</button>
+                </div>
+                <div class="tab-body">
+                    <pre><code id="script-preview-code"># Generating script preview...</code></pre>
+                </div>
+                <div class="script-actions">
+                    <button id="download-script-btn" class="btn btn-primary btn-lg">
+                        <i class="fa-solid fa-download"></i> Download Script File
+                    </button>
+                    <button id="copy-script-btn" class="btn btn-outline">
+                        <i class="fa-solid fa-copy"></i> Copy Script to Clipboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- How to run guide -->
+            <div class="run-instructions">
+                <h3><i class="fa-solid fa-circle-play"></i> How to run on your PC:</h3>
+                <ol>
+                    <li>Click <strong>Download Script File</strong> above.</li>
+                    <li>Right-click the downloaded <code>.ps1</code> or <code>.bat</code> file and select <strong>Run with PowerShell</strong> (or <strong>Run as Administrator</strong>).</li>
+                    <li>Sit back while Windows Package Manager automatically downloads and installs all your software silently!</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Bottom Controls Bar -->
+        <div class="wizard-footer">
+            <button id="prev-btn" class="btn btn-secondary" disabled>
+                <i class="fa-solid fa-arrow-left"></i> Previous
+            </button>
+            <div class="selection-pill">
+                <span id="floating-count">0</span> apps selected
+            </div>
+            <button id="next-btn" class="btn btn-primary">
+                Next Step <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            <p>&copy; 2026 AutoSetup PC Helper. Driven by Windows Package Manager (winget).</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

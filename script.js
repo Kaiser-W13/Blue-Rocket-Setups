@@ -4,8 +4,8 @@
 
 // 1. SUPABASE CONFIGURATION
 // Replace these placeholders with your actual Supabase Project URL and Anon Key
-const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://zqaizebbuorztjywcucc.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NUZwi3uL3Bur8ayZZSL0dw_H_1zH2SL";
 
 let supabaseClient = null;
 const isSupabaseConfigured = SUPABASE_URL.startsWith("http") && !SUPABASE_URL.includes("YOUR_SUPABASE");

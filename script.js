@@ -20,8 +20,7 @@ if (!sessionId) {
 }
 
 // 2. RAPIDAPI CONFIGURATION (codemeoww - Game Deals & Freebies API)
-// Paste your RapidAPI key below and verify host/endpoint paths on RapidAPI's Endpoints tab.
-const RAPIDAPI_KEY = "fc3e9b9815msh0d13f6d300e7037p18810bjsnd1b6157398e2";
+const RAPIDAPI_KEY = "YOUR_RAPIDAPI_KEY_HERE";
 const RAPIDAPI_HOST = "game-deals-freebies-api.p.rapidapi.com";
 const RAPIDAPI_BASE_URL = `https://${RAPIDAPI_HOST}`;
 const RAPIDAPI_ENDPOINTS = {
@@ -78,37 +77,40 @@ const DEFAULT_GAME_DEALS = [
         discount: 53,
         sale_price: 38.60,
         orig_price: 82.98,
+        is_coming_soon: false,
         image: "https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg",
         url: "https://store.steampowered.com/app/1091500/Cyberpunk_2077/",
-        note: "Open-world action RPG set in Night City. Includes the base game and Phantom Liberty expansion with heavy GPU ray-tracing support.",
+        note: "Active Steam sale. Open-world action RPG set in Night City with Phantom Liberty expansion.",
         author_email: "alex.gamer@example.com",
         upvotes: 42
     },
     {
         id: "deal-2",
-        title: "Weekly Freebie Giveaway",
-        store: "Freebies",
+        title: "Current Epic Weekly Freebie",
+        store: "Epic Games Freebies",
         discount: 100,
         sale_price: 0.00,
         orig_price: 19.99,
+        is_coming_soon: false,
         image: "https://cdn2.unrealengine.com/egs-social-1920x1080-1920x1080-690624792.jpg",
         url: "https://store.epicgames.com/en-US/free-games",
-        note: "100% OFF limited-time freebie. Claim it before the weekly rotation resets to keep it in your library permanently.",
+        note: "Currently free on Epic Games Store for a limited time. Claim now to keep it in your library.",
         author_email: "freebie_alert@example.com",
         upvotes: 39
     },
     {
         id: "deal-3",
-        title: "Alan Wake 2",
-        store: "Epic Games",
-        discount: 50,
-        sale_price: 24.99,
-        orig_price: 49.99,
+        title: "Next Week's Mystery Epic Freebie",
+        store: "Epic Games Freebies",
+        discount: 100,
+        sale_price: 0.00,
+        orig_price: 29.99,
+        is_coming_soon: true,
         image: "https://cdn2.unrealengine.com/aw2-keyart-1920x1080-1920x1080-954976161.jpg",
-        url: "https://store.epicgames.com/en-US/p/alan-wake-2",
-        note: "Survival horror thriller following FBI agent Saga Anderson and writer Alan Wake across twin realities.",
-        author_email: "night_springs@example.com",
-        upvotes: 28
+        url: "https://store.epicgames.com/en-US/free-games",
+        note: "Coming soon to Epic Games Freebies once the current weekly free game rotation ends.",
+        author_email: "epic_tracker@example.com",
+        upvotes: 31
     }
 ];
 
@@ -138,99 +140,121 @@ document.addEventListener("DOMContentLoaded", async () => {
 /* -------------------------------------------------------------
    IMAGE, STORE LINK & RAPIDAPI INTEGRATION
    ------------------------------------------------------------- */
-function resolveStoreName(rawStore, forceFreebie = false) {
-    if (forceFreebie) return "Freebies";
-    const s = String(rawStore || "").toLowerCase();
-    if (s.includes("steam")) return "Steam";
-    if (s.includes("epic")) return "Epic Games";
-    if (s.includes("free")) return "Freebies";
-    return rawStore ? String(rawStore).trim() : "Steam";
-}
-
-function getFallbackStoreUrl(storeName, title = "") {
-    const query = encodeURIComponent(title || "");
-    switch (storeName) {
-        case "Steam":
-            return title ? `https://store.steampowered.com/search/?term=${query}` : "https://store.steampowered.com/";
-        case "Epic Games":
-            return title ? `https://store.epicgames.com/en-US/browse?q=${query}` : "https://store.epicgames.com/en-US/free-games";
-        case "Freebies":
-            return "https://store.epicgames.com/en-US/free-games";
-        default:
-            return "https://store.steampowered.com/";
+function normalizeStoreName(rawStore) {
+    const s = String(rawStore || "").trim().toLowerCase();
+    if (s.includes("epic") || s.includes("freebie") || s.includes("free")) {
+        return "Epic Games Freebies";
     }
+    return "Steam";
 }
 
-function sanitizeStoreUrl(rawUrl, storeName, title) {
+function getFallbackStoreUrl(storeName, title = "", steamAppID = "") {
+    if (steamAppID) {
+        return `https://store.steampowered.com/app/${encodeURIComponent(steamAppID)}/`;
+    }
+    if (storeName === "Epic Games Freebies") {
+        return "https://store.epicgames.com/en-US/free-games";
+    }
+    const query = encodeURIComponent(title || "");
+    return title ? `https://store.steampowered.com/search/?term=${query}` : "https://store.steampowered.com/";
+}
+
+function sanitizeStoreUrl(rawUrl, storeName, title = "", steamAppID = "") {
     const candidate = String(rawUrl || "").trim();
     if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
         return candidate;
     }
-    return getFallbackStoreUrl(storeName, title);
+    return getFallbackStoreUrl(storeName, title, steamAppID);
 }
 
-function getFallbackGameImage(storeName) {
-    if (storeName === "Epic Games" || storeName === "Freebies") {
+function getFallbackGameImage(storeName, steamAppID = "") {
+    if (steamAppID) {
+        return `https://cdn.cloudflare.steamstatic.com/steam/apps/${encodeURIComponent(steamAppID)}/header.jpg`;
+    }
+    if (storeName === "Epic Games Freebies") {
         return "https://cdn2.unrealengine.com/egs-social-1920x1080-1920x1080-690624792.jpg";
     }
     return "https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg";
 }
 
-function sanitizeImageUrl(rawImage, storeName) {
+function sanitizeImageUrl(rawImage, storeName, steamAppID = "") {
     const candidate = String(rawImage || "").trim();
     if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
         return candidate;
     }
-    return getFallbackGameImage(storeName);
+    return getFallbackGameImage(storeName, steamAppID);
+}
+
+function parsePriceValue(val) {
+    if (val === undefined || val === null || val === "") return NaN;
+    const cleaned = String(val).replace(/[^0-9.]/g, "");
+    const num = Number.parseFloat(cleaned);
+    return Number.isNaN(num) ? NaN : num;
 }
 
 function normalizeRapidApiItem(item, categoryType, index) {
-    const title = item.title || item.name || item.gameTitle || item.game || "Untitled Game Deal";
-    const isFreebieCategory = categoryType === "freebies" || categoryType === "epic";
-    const salePriceRaw = item.salePrice ?? item.sale_price ?? item.price ?? item.currentPrice ?? 0;
-    const origPriceRaw = item.normalPrice ?? item.orig_price ?? item.originalPrice ?? item.retailPrice ?? salePriceRaw;
-    const salePrice = Number.parseFloat(salePriceRaw) || 0;
-    const origPrice = Number.parseFloat(origPriceRaw) || salePrice;
+    const title = item.title || item.name || item.gameTitle || item.game || "Untitled Game";
+    const steamAppID = item.steamAppID || item.steam_app_id || item.appId || "";
+    const isFreebieEndpoint = categoryType === "freebies" || categoryType === "epic";
+    const isUpcoming = Boolean(item._isUpcoming || item.upcoming || item.isUpcoming || String(item.status || "").toLowerCase().includes("upcoming"));
 
-    let discount = Number.parseInt(item.discount ?? item.savings ?? item.discountPercent, 10);
+    const rawSale = parsePriceValue(item.salePrice ?? item.sale_price ?? item.price ?? item.currentPrice ?? item.finalPrice);
+    const rawOrig = parsePriceValue(item.normalPrice ?? item.orig_price ?? item.originalPrice ?? item.retailPrice ?? item.initialPrice);
+
+    const salePrice = Number.isNaN(rawSale) ? (isFreebieEndpoint ? 0 : 0) : rawSale;
+    const origPrice = Number.isNaN(rawOrig) ? salePrice : rawOrig;
+
+    let discount = Number.parseInt(String(item.discount ?? item.savings ?? item.discountPercent ?? "").replace(/[^0-9-]/g, ""), 10);
     if (Number.isNaN(discount)) {
-        if (salePrice === 0 && origPrice > 0) {
+        if (isFreebieEndpoint || salePrice === 0) {
             discount = 100;
-        } else if (origPrice > 0) {
+        } else if (origPrice > 0 && salePrice < origPrice) {
             discount = Math.round(((origPrice - salePrice) / origPrice) * 100);
         } else {
-            discount = isFreebieCategory ? 100 : 0;
+            discount = 0;
         }
+    } else if (discount > 0 && discount < 1 && origPrice > 0 && salePrice < origPrice) {
+        discount = Math.round(discount * 100);
     }
 
-    const isFreebie = isFreebieCategory || Boolean(item.isFreebie || item.free || salePrice === 0 || discount === 100);
-    const store = resolveStoreName(
-        item.store || item.storeName || item.platform || (categoryType === "epic" ? "Epic Games" : "Steam"),
-        isFreebie
-    );
+    const isFreeItem = isFreebieEndpoint || Boolean(item.isFreebie || item.free || salePrice === 0 || discount === 100);
+
+    // Keep only current and upcoming freebies on freebie endpoints
+    if (isFreebieEndpoint && !isFreeItem && !isUpcoming) {
+        return null;
+    }
+
+    const store = isFreebieEndpoint
+        ? "Epic Games Freebies"
+        : normalizeStoreName(item.store || item.storeName || item.platform || "Steam");
 
     const rawLink = item.url || item.dealUrl || item.storeUrl || item.link || item.claimUrl || item.steamUrl || "";
-    const url = sanitizeStoreUrl(rawLink, store, title);
+    const url = sanitizeStoreUrl(rawLink, store, title, steamAppID);
 
-    const rawImg = item.image || item.thumbnail || item.thumb || item.cover || item.banner || item.headerImage || "";
-    const image = sanitizeImageUrl(rawImg, store);
+    const rawImg = item.image || item.thumbnail || item.thumb || item.cover || item.banner || item.headerImage || item.capsule || "";
+    const image = sanitizeImageUrl(rawImg, store, steamAppID);
 
     const historicLow = item.historicLow ?? item.historicalLow ?? item.cheapestPriceEver ?? item.cheapestPrice;
     const historicText = historicLow !== undefined && historicLow !== null && historicLow !== ""
-        ? `Historic low: $${Number.parseFloat(historicLow).toFixed(2)}. `
+        ? `Historic low: $${Number.parseFloat(String(historicLow).replace(/[^0-9.]/g, "")).toFixed(2)}. `
         : "";
-    const defaultDesc = isFreebie
-        ? `Limited-time freebie / giveaway on ${store}. Click "Open Store Page" to claim.`
-        : `Active game deal & price tracker listing on ${store}.`;
+
+    const defaultDesc = isUpcoming
+        ? "Coming soon to Epic Games Freebies. Check back once the weekly freebie unlocks."
+        : isFreeItem
+            ? "Currently free on Epic Games Freebies. Click 'Open Store Page' to claim."
+            : `Active Steam sale (${discount}% OFF). Click 'Open Store Page' to view on Steam.`;
+
     const fullDescription = item.description || item.note || item.claimInstructions || defaultDesc;
 
     return {
-        id: item.id || `rapid-${categoryType}-${index}-${title.slice(0, 12)}`,
+        id: item.id || `rapid-${categoryType}-${isUpcoming ? "up" : "cur"}-${index}-${title.slice(0, 12)}`,
         title,
         store,
         discount,
-        sale_price: salePrice,
+        sale_price: isFreeItem ? 0 : salePrice,
         orig_price: origPrice,
+        is_coming_soon: Boolean(isFreebieEndpoint && isUpcoming),
         image,
         url,
         note: `${historicText}${fullDescription}`.trim(),
@@ -239,17 +263,28 @@ function normalizeRapidApiItem(item, categoryType, index) {
     };
 }
 
-function extractRapidList(payload) {
-    if (Array.isArray(payload)) return payload;
+function extractRapidList(payload, categoryType) {
+    if (Array.isArray(payload)) {
+        return payload.map(item => ({ ...item, _isUpcoming: false }));
+    }
     if (!payload || typeof payload !== "object") return [];
 
     const combined = [];
-    if (Array.isArray(payload.active)) combined.push(...payload.active);
-    if (Array.isArray(payload.upcoming)) combined.push(...payload.upcoming);
+    if (Array.isArray(payload.active)) {
+        combined.push(...payload.active.map(item => ({ ...item, _isUpcoming: false })));
+    }
+    if (Array.isArray(payload.current)) {
+        combined.push(...payload.current.map(item => ({ ...item, _isUpcoming: false })));
+    }
+    if (Array.isArray(payload.upcoming)) {
+        combined.push(...payload.upcoming.map(item => ({ ...item, _isUpcoming: true })));
+    }
     if (combined.length > 0) return combined;
 
     const candidates = [
         payload.deals,
+        payload.steam,
+        payload.steamDeals,
         payload.freebies,
         payload.giveaways,
         payload.data,
@@ -258,7 +293,12 @@ function extractRapidList(payload) {
         payload.games
     ];
     for (const c of candidates) {
-        if (Array.isArray(c)) return c;
+        if (Array.isArray(c)) {
+            return c.map(item => ({
+                ...item,
+                _isUpcoming: Boolean(item.upcoming || item.isUpcoming || categoryType === "upcoming")
+            }));
+        }
     }
     return [];
 }
@@ -277,8 +317,10 @@ async function fetchEndpoint(path, categoryType) {
     }
 
     const payload = await response.json();
-    const list = extractRapidList(payload);
-    return list.map((item, idx) => normalizeRapidApiItem(item, categoryType, idx));
+    const list = extractRapidList(payload, categoryType);
+    return list
+        .map((item, idx) => normalizeRapidApiItem(item, categoryType, idx))
+        .filter(Boolean);
 }
 
 async function fetchAllRapidApiDealsAndFreebies() {
@@ -311,15 +353,24 @@ async function fetchAllRapidApiDealsAndFreebies() {
    GAME DESCRIPTION POPUP MODAL
    ------------------------------------------------------------- */
 function openGameDescriptionPopup(deal) {
-    const storeLabel = deal.store || "Steam";
-    const isFree = Number(deal.sale_price) === 0 || Number(deal.discount) === 100;
+    const storeLabel = normalizeStoreName(deal.store);
+    const isComingSoon = Boolean(deal.is_coming_soon);
+    const isFree = !isComingSoon && (Number(deal.sale_price) === 0 || Number(deal.discount) === 100);
     const safeUrl = sanitizeStoreUrl(deal.url, storeLabel, deal.title);
     const safeImg = sanitizeImageUrl(deal.image, storeLabel);
 
-    document.getElementById("popup-store-badge").textContent = storeLabel;
-    document.getElementById("popup-discount-badge").textContent = isFree
-        ? "FREEBIE (100% OFF)"
-        : `-${Number(deal.discount) || 0}% OFF`;
+    const storeBadge = document.getElementById("popup-store-badge");
+    const discBadge = document.getElementById("popup-discount-badge");
+    storeBadge.textContent = storeLabel;
+
+    discBadge.classList.toggle("coming-soon", isComingSoon);
+    if (isComingSoon) {
+        discBadge.textContent = "COMING SOON";
+    } else if (isFree) {
+        discBadge.textContent = "FREEBIE (100% OFF)";
+    } else {
+        discBadge.textContent = `-${Number(deal.discount) || 0}% OFF`;
+    }
 
     const imgEl = document.getElementById("popup-game-image");
     imgEl.src = safeImg;
@@ -330,16 +381,25 @@ function openGameDescriptionPopup(deal) {
     };
 
     document.getElementById("popup-game-title").textContent = deal.title;
-    document.getElementById("popup-sale-price").textContent = isFree
-        ? "FREE"
-        : `$${Number(deal.sale_price).toFixed(2)}`;
 
+    const saleEl = document.getElementById("popup-sale-price");
     const origEl = document.getElementById("popup-orig-price");
-    if (Number(deal.orig_price) > 0 && !isFree) {
-        origEl.textContent = `$${Number(deal.orig_price).toFixed(2)}`;
-        origEl.classList.remove("hidden");
-    } else {
+    saleEl.classList.toggle("coming-soon-label", isComingSoon);
+
+    if (isComingSoon) {
+        saleEl.textContent = "Coming Soon";
         origEl.classList.add("hidden");
+    } else if (isFree) {
+        saleEl.textContent = "FREE";
+        origEl.classList.add("hidden");
+    } else {
+        saleEl.textContent = `$${Number(deal.sale_price).toFixed(2)}`;
+        if (Number(deal.orig_price) > Number(deal.sale_price)) {
+            origEl.textContent = `$${Number(deal.orig_price).toFixed(2)}`;
+            origEl.classList.remove("hidden");
+        } else {
+            origEl.classList.add("hidden");
+        }
     }
 
     document.getElementById("popup-source-meta").textContent = `Source: ${deal.author_email || "Community"}`;
@@ -348,7 +408,13 @@ function openGameDescriptionPopup(deal) {
 
     const linkEl = document.getElementById("popup-store-link");
     linkEl.href = safeUrl;
-    linkEl.innerHTML = `${isFree ? "Claim Free on Store" : `Open ${storeLabel} Page`} <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+    if (isComingSoon) {
+        linkEl.innerHTML = `View on Epic Games <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+    } else if (isFree) {
+        linkEl.innerHTML = `Claim Free on Store <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+    } else {
+        linkEl.innerHTML = `Open ${storeLabel} Page <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+    }
 
     openModal("game-info-modal");
 }
@@ -511,7 +577,8 @@ function loadStateFromStorage() {
    GAME DEALS & FREEBIES LOGIC
    ------------------------------------------------------------- */
 async function loadGameDeals() {
-    const localDeals = JSON.parse(localStorage.getItem("communityGameDeals") || "[]");
+    const localDeals = JSON.parse(localStorage.getItem("communityGameDeals") || "[]")
+        .map(d => ({ ...d, store: normalizeStoreName(d.store) }));
     let supabaseDeals = [];
 
     if (supabaseClient && navigator.onLine) {
@@ -522,7 +589,7 @@ async function loadGameDeals() {
                 .order("upvotes", { ascending: false });
 
             if (!error && data && data.length > 0) {
-                supabaseDeals = data;
+                supabaseDeals = data.map(d => ({ ...d, store: normalizeStoreName(d.store) }));
             }
         } catch (err) {
             console.warn("Using cached/default game deals:", err.message);
@@ -533,7 +600,7 @@ async function loadGameDeals() {
     const baseCommunityDeals = supabaseDeals.length > 0 ? supabaseDeals : DEFAULT_GAME_DEALS;
 
     state.gameDeals = [...localDeals, ...rapidDeals, ...baseCommunityDeals];
-    renderGameDeals();
+    renderGameDeals(getCurrentStoreFilter(), document.getElementById("deal-search").value);
 }
 
 function renderGameDeals(storeFilter = "all", searchQuery = "") {
@@ -541,23 +608,42 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
     grid.innerHTML = "";
 
     const filtered = state.gameDeals.filter(deal => {
-        const matchesStore = storeFilter === "all" || deal.store === storeFilter;
-        const matchesSearch = deal.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              (deal.note && deal.note.toLowerCase().includes(searchQuery.toLowerCase()));
+        const normalizedStore = normalizeStoreName(deal.store);
+        const matchesStore = storeFilter === "all" || normalizedStore === storeFilter;
+        const q = searchQuery.toLowerCase();
+        const matchesSearch = deal.title.toLowerCase().includes(q) ||
+                              normalizedStore.toLowerCase().includes(q) ||
+                              (deal.note && deal.note.toLowerCase().includes(q));
         return matchesStore && matchesSearch;
     });
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No game deals or freebies found matching your filter.</p>`;
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No Steam sales or Epic Games freebies found matching your filter.</p>`;
         return;
     }
 
     filtered.forEach(deal => {
+        const storeLabel = normalizeStoreName(deal.store);
+        const isComingSoon = Boolean(deal.is_coming_soon);
+        const isFree = !isComingSoon && (Number(deal.sale_price) === 0 || Number(deal.discount) === 100);
         const isVoted = state.upvotedDeals.has(String(deal.id));
-        const storeLabel = escapeHtml(deal.store);
-        const safeUrl = escapeHtml(sanitizeStoreUrl(deal.url, deal.store, deal.title));
-        const safeImg = escapeHtml(sanitizeImageUrl(deal.image, deal.store));
-        const isFree = Number(deal.sale_price) === 0 || Number(deal.discount) === 100;
+        const safeUrl = escapeHtml(sanitizeStoreUrl(deal.url, storeLabel, deal.title));
+        const safeImg = escapeHtml(sanitizeImageUrl(deal.image, storeLabel));
+
+        const badgeText = isComingSoon
+            ? "COMING SOON"
+            : isFree
+                ? "FREEBIE"
+                : `-${Number(deal.discount) || 0}% OFF`;
+
+        const priceHtml = isComingSoon
+            ? `<span class="sale-price coming-soon-label">Coming Soon</span>`
+            : isFree
+                ? `<span class="sale-price">FREE</span>`
+                : `<span class="sale-price">$${Number(deal.sale_price).toFixed(2)}</span>
+                   ${Number(deal.orig_price) > Number(deal.sale_price) ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}`;
+
+        const actionText = isComingSoon ? "Preview" : isFree ? "Claim" : "Store";
 
         const card = document.createElement("article");
         card.className = "deal-card";
@@ -565,8 +651,8 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
             <img class="deal-cover" src="${safeImg}" alt="${escapeHtml(deal.title)} cover" loading="lazy">
             <div class="deal-body">
                 <div class="deal-top">
-                    <span class="store-pill">${storeLabel}</span>
-                    <span class="discount-badge">${isFree ? "FREEBIE" : `-${Number(deal.discount) || 0}% OFF`}</span>
+                    <span class="store-pill">${escapeHtml(storeLabel)}</span>
+                    <span class="discount-badge ${isComingSoon ? "coming-soon" : ""}">${escapeHtml(badgeText)}</span>
                 </div>
                 <h3 class="deal-title">${escapeHtml(deal.title)}</h3>
                 ${deal.note ? `<p class="deal-note">${escapeHtml(deal.note)}</p>` : ""}
@@ -576,8 +662,7 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
             </div>
             <div class="deal-footer">
                 <div class="price-box">
-                    <span class="sale-price">${isFree ? "FREE" : `$${Number(deal.sale_price).toFixed(2)}`}</span>
-                    ${Number(deal.orig_price) > 0 && !isFree ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}
+                    ${priceHtml}
                 </div>
                 <div class="deal-actions">
                     <button type="button" class="btn btn-outline btn-sm info-popup-btn" title="View game description">
@@ -587,7 +672,7 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
                         <i class="fa-solid fa-thumbs-up"></i> <span>${deal.upvotes || 0}</span>
                     </button>
                     <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">
-                        ${isFree ? "Claim" : "Store"} <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        ${actionText} <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
             </div>
@@ -595,12 +680,12 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
 
         const imgEl = card.querySelector(".deal-cover");
         imgEl.addEventListener("error", () => {
-            imgEl.src = getFallbackGameImage(deal.store);
+            imgEl.src = getFallbackGameImage(storeLabel);
         });
 
         card.addEventListener("click", (e) => {
             if (e.target.closest("a") || e.target.closest(".upvote-btn")) return;
-            openGameDescriptionPopup(deal);
+            openGameDescriptionPopup({ ...deal, store: storeLabel });
         });
 
         const upvoteBtn = card.querySelector(".upvote-btn");
@@ -619,22 +704,26 @@ async function handleDealSubmit(e) {
     const submitBtn = document.getElementById("deal-submit-btn");
 
     if (!state.currentUser) {
-        showFormFeedback(feedback, "Please sign in first to recommend a game deal.", "error");
+        showFormFeedback(feedback, "Please sign in first to recommend a deal or freebie.", "error");
         return;
     }
 
-    const store = document.getElementById("deal-store").value;
+    const store = normalizeStoreName(document.getElementById("deal-store").value);
     const title = document.getElementById("deal-title").value.trim();
     const rawUrl = document.getElementById("deal-url").value.trim();
     const rawImg = document.getElementById("deal-image").value.trim();
+    const salePrice = parseFloat(document.getElementById("deal-sale-price").value);
+    const origPrice = parseFloat(document.getElementById("deal-orig-price").value);
+    const discount = parseInt(document.getElementById("deal-discount").value, 10);
 
     const newDeal = {
         id: "deal-" + Date.now(),
         title,
         store,
-        discount: parseInt(document.getElementById("deal-discount").value, 10),
-        sale_price: parseFloat(document.getElementById("deal-sale-price").value),
-        orig_price: parseFloat(document.getElementById("deal-orig-price").value),
+        discount,
+        sale_price: salePrice,
+        orig_price: origPrice,
+        is_coming_soon: false,
         image: sanitizeImageUrl(rawImg, store),
         url: sanitizeStoreUrl(rawUrl, store, title),
         note: document.getElementById("deal-note").value.trim(),
@@ -647,7 +736,7 @@ async function handleDealSubmit(e) {
 
     try {
         if (supabaseClient && navigator.onLine) {
-            const { id, image, ...dbPayload } = newDeal;
+            const { id, image, is_coming_soon, ...dbPayload } = newDeal;
             const { data, error } = await supabaseClient
                 .from("game_deals")
                 .insert([dbPayload])
@@ -860,7 +949,7 @@ function setupEventListeners() {
         if (!state.currentUser) {
             openModal("auth-modal");
             const authMsg = document.getElementById("auth-message");
-            showFormFeedback(authMsg, "Sign in or create an account to share game deals with the community!", "success");
+            showFormFeedback(authMsg, "Sign in or create an account to share deals with the community!", "success");
             return;
         }
         openModal("deal-modal");
@@ -994,11 +1083,11 @@ function generateScriptOutput() {
     let scriptText = "";
 
     if (state.activeFormat === "ps1") {
-        scriptText = `# AutoSetup PC - Automated Windows Installation Script\n# Generated on: ${new Date().toLocaleDateString()}\n\nWrite-Host "Starting automated application installation..." -ForegroundColor Green\n\n`;
+        scriptText = `# AutoSetup PC - Automated Windows Installation Script\n# Generated on: ${new Date().toLocaleDateString()}\n\nWrite-Host "Starting automated application installation..." -ForegroundColor Cyan\n\n`;
         allPackages.forEach(pkg => {
             scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
         });
-        scriptText += `\nWrite-Host "All applications installed successfully!" -ForegroundColor Green`;
+        scriptText += `\nWrite-Host "All applications installed successfully!" -ForegroundColor Cyan`;
     } else if (state.activeFormat === "bat") {
         scriptText = `@echo off\nREM AutoSetup PC - Batch Installer\n\necho Starting automated application installation...\n\n`;
         allPackages.forEach(pkg => {

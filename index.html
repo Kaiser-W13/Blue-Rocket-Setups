@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Blue Rocket Station — Setup Wizard & Live Game Deals</title>
-    <link rel="stylesheet" href="style.css">
+    <title>AutoSetup PC — Setup Wizard & Live Game Deals</title>
+    <link rel="stylesheet" href="style_3.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -16,7 +16,7 @@
     <header class="site-header">
         <div class="container header-inner">
             <div class="brand">
-                <i class="fa-solid fa-desktop brand-icon"></i>
+                <i class="fa-solid fa-bolt brand-icon"></i>
                 <span>AutoSetup <strong>PC</strong></span>
             </div>
 
@@ -171,8 +171,8 @@
         <section id="deals-view" class="view-section hidden">
             <div class="deals-header">
                 <div>
-                    <h2>Live Game Deals, Historic Lows &amp; Freebies</h2>
-                    <p class="subtitle">Click any game card to view its full description popup, or jump straight to the store page.</p>
+                    <h2>Steam Sales &amp; Epic Games Freebies</h2>
+                    <p class="subtitle">Current and upcoming Epic Games Freebies plus live Steam sales. Click any card for full details.</p>
                 </div>
                 <button id="open-deal-modal-btn" type="button" class="btn btn-primary">
                     <i class="fa-solid fa-plus"></i> Share a Deal
@@ -180,12 +180,11 @@
             </div>
 
             <div class="toolbar">
-                <input type="text" id="deal-search" class="search-input" placeholder="Search games, stores, or freebies...">
+                <input type="text" id="deal-search" class="search-input" placeholder="Search games, Steam sales, or Epic freebies...">
                 <div id="store-filters" class="filter-group">
                     <button type="button" class="filter-btn active" data-store="all">All</button>
-                    <button type="button" class="filter-btn" data-store="Freebies">Freebies</button>
+                    <button type="button" class="filter-btn" data-store="Epic Games Freebies">Epic Games Freebies</button>
                     <button type="button" class="filter-btn" data-store="Steam">Steam</button>
-                    <button type="button" class="filter-btn" data-store="Epic Games">Epic Games</button>
                 </div>
             </div>
 
@@ -253,7 +252,7 @@
         <div class="modal-backdrop"></div>
         <div class="modal-card">
             <div class="modal-header">
-                <h3>Recommend a Game Deal or Freebie</h3>
+                <h3>Recommend a Steam Deal or Epic Freebie</h3>
                 <button id="close-deal-modal" type="button" class="close-btn">&times;</button>
             </div>
             <form id="deal-form">
@@ -263,11 +262,10 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="deal-store">Store</label>
+                        <label for="deal-store">Category / Store</label>
                         <select id="deal-store">
                             <option value="Steam">Steam</option>
-                            <option value="Epic Games">Epic Games</option>
-                            <option value="Freebies">Freebies</option>
+                            <option value="Epic Games Freebies">Epic Games Freebies</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -294,8 +292,8 @@
                     <input type="url" id="deal-url" required placeholder="https://store.steampowered.com/...">
                 </div>
                 <div class="form-group">
-                    <label for="deal-note">Description / Historic Low Info</label>
-                    <textarea id="deal-note" rows="3" placeholder="Game summary, historic low details, or freebie claim window..."></textarea>
+                    <label for="deal-note">Description / Sale or Freebie Details</label>
+                    <textarea id="deal-note" rows="3" placeholder="Game summary, discount details, or freebie window..."></textarea>
                 </div>
                 <div id="deal-message" class="form-feedback hidden"></div>
                 <button id="deal-submit-btn" type="submit" class="btn btn-primary btn-block">Post Deal</button>
@@ -303,6 +301,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script_6.js"></script>
 </body>
 </html>

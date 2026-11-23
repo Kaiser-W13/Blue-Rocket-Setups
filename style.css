@@ -1,15 +1,21 @@
+/* Neon Blue & Black Modern Theme */
 :root {
-    --bg: #0f172a;
-    --surface: #1e293b;
-    --surface-2: #334155;
-    --text: #f8fafc;
-    --text-muted: #94a3b8;
-    --primary: #3b82f6;
-    --primary-hover: #2563eb;
-    --success: #22c55e;
-    --danger: #ef4444;
-    --border: #475569;
-    --radius: 10px;
+    --bg: #03050a;
+    --surface: #080e1a;
+    --surface-2: #0f1b30;
+    --text: #f0f9ff;
+    --text-muted: #7dd3fc;
+    --neon-blue: #00d9ff;
+    --neon-blue-bright: #38bdf8;
+    --electric-blue: #2563eb;
+    --primary: #0284c7;
+    --primary-hover: #00d9ff;
+    --coming-soon: #60a5fa;
+    --danger: #f43f5e;
+    --border: rgba(0, 217, 255, 0.24);
+    --border-strong: rgba(0, 217, 255, 0.65);
+    --glow: 0 0 18px rgba(0, 217, 255, 0.24);
+    --radius: 12px;
 }
 
 * {
@@ -20,9 +26,13 @@
 
 body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg);
+    background:
+        radial-gradient(circle at 50% -12%, rgba(0, 217, 255, 0.15), transparent 46%),
+        radial-gradient(circle at 85% 18%, rgba(37, 99, 235, 0.12), transparent 42%),
+        var(--bg);
     color: var(--text);
     line-height: 1.5;
+    min-height: 100vh;
 }
 
 .container {
@@ -35,16 +45,19 @@ body {
 }
 
 .network-banner {
-    background: #92400e;
-    color: #fef3c7;
+    background: linear-gradient(90deg, #0369a1, #0284c7);
+    color: #f0f9ff;
     text-align: center;
     padding: 8px 14px;
     font-size: 0.9rem;
+    border-bottom: 1px solid var(--border-strong);
 }
 
 .site-header {
-    background: rgba(15, 23, 42, 0.92);
+    background: rgba(3, 5, 10, 0.88);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--border);
+    box-shadow: 0 4px 26px rgba(0, 217, 255, 0.08);
     position: sticky;
     top: 0;
     z-index: 20;
@@ -63,12 +76,19 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 1.2rem;
+    font-size: 1.25rem;
+    letter-spacing: 0.02em;
 }
 
 .brand-icon {
-    color: var(--primary);
-    font-size: 1.4rem;
+    color: var(--neon-blue);
+    font-size: 1.35rem;
+    filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.75));
+}
+
+.brand strong {
+    color: var(--neon-blue);
+    text-shadow: 0 0 12px rgba(0, 217, 255, 0.55);
 }
 
 .main-nav {
@@ -78,19 +98,26 @@ body {
 
 .nav-tab, .tab-btn, .filter-btn, .auth-tab-btn {
     background: var(--surface);
-    color: var(--text-muted);
+    color: #94a3b8;
     border: 1px solid var(--border);
     padding: 8px 14px;
-    border-radius: 8px;
+    border-radius: 9px;
     cursor: pointer;
     font-size: 0.9rem;
-    transition: 0.15s ease;
+    font-weight: 500;
+    transition: all 0.16s ease;
+}
+
+.nav-tab:hover, .tab-btn:hover, .filter-btn:hover, .auth-tab-btn:hover {
+    color: var(--neon-blue);
+    border-color: var(--border-strong);
 }
 
 .nav-tab.active, .tab-btn.active, .filter-btn.active, .auth-tab-btn.active {
-    background: var(--primary);
-    color: #fff;
-    border-color: var(--primary);
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.35), rgba(0, 217, 255, 0.22));
+    color: #ffffff;
+    border-color: var(--neon-blue);
+    box-shadow: var(--glow);
 }
 
 .auth-area, #auth-user-controls {
@@ -101,7 +128,7 @@ body {
 
 .user-email {
     font-size: 0.85rem;
-    color: var(--text-muted);
+    color: var(--neon-blue-bright);
 }
 
 .main-content {
@@ -113,13 +140,14 @@ body {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    border-radius: 8px;
+    border-radius: 9px;
     border: 1px solid transparent;
     padding: 10px 16px;
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
     font-size: 0.92rem;
+    transition: all 0.16s ease;
 }
 
 .btn:disabled {
@@ -137,25 +165,36 @@ body {
 }
 
 .btn-primary {
-    background: var(--primary);
-    color: #fff;
+    background: linear-gradient(135deg, var(--electric-blue), var(--neon-blue));
+    color: #020617;
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 14px rgba(0, 217, 255, 0.25);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: var(--primary-hover);
+    filter: brightness(1.12);
+    box-shadow: 0 0 22px rgba(0, 217, 255, 0.5);
 }
 
 .btn-outline {
-    background: transparent;
+    background: rgba(8, 14, 26, 0.85);
     color: var(--text);
     border-color: var(--border);
 }
 
 .btn-outline:hover:not(:disabled) {
-    border-color: var(--primary);
+    color: var(--neon-blue);
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 12px rgba(0, 217, 255, 0.22);
 }
 
 .btn-danger {
+    background: rgba(244, 63, 94, 0.16);
+    color: #fda4af;
+    border-color: rgba(244, 63, 94, 0.55);
+}
+
+.btn-danger:hover:not(:disabled) {
     background: var(--danger);
     color: #fff;
 }
@@ -174,16 +213,19 @@ body {
     border-radius: var(--radius);
     cursor: pointer;
     font-weight: 600;
-    color: var(--text-muted);
+    color: #94a3b8;
+    transition: all 0.16s ease;
 }
 
 .step-item.active {
-    border-color: var(--primary);
+    border-color: var(--neon-blue);
     color: var(--text);
+    box-shadow: var(--glow);
 }
 
 .step-item.completed {
-    border-color: var(--success);
+    border-color: rgba(56, 189, 248, 0.55);
+    color: var(--neon-blue-bright);
 }
 
 .wizard-step {
@@ -192,6 +234,7 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 24px;
+    box-shadow: 0 16px 38px rgba(0, 0, 0, 0.7);
 }
 
 .wizard-step.active {
@@ -199,7 +242,7 @@ body {
 }
 
 .subtitle {
-    color: var(--text-muted);
+    color: #94a3b8;
     margin: 6px 0 18px;
 }
 
@@ -215,15 +258,17 @@ body {
     border-radius: var(--radius);
     padding: 16px;
     cursor: pointer;
+    transition: all 0.16s ease;
 }
 
 .preset-card.selected, .preset-card:hover, .gpu-card:hover {
-    border-color: var(--primary);
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 16px rgba(0, 217, 255, 0.22);
 }
 
 .preset-card i {
     font-size: 1.4rem;
-    color: var(--primary);
+    color: var(--neon-blue);
     margin-bottom: 8px;
 }
 
@@ -231,9 +276,10 @@ body {
     margin-top: 12px;
     padding: 12px;
     background: var(--bg);
-    border-left: 3px solid var(--primary);
-    border-radius: 6px;
-    color: var(--text-muted);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--neon-blue);
+    border-radius: 8px;
+    color: #cbd5e1;
 }
 
 .toolbar {
@@ -249,8 +295,14 @@ body {
     background: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 9px;
     padding: 9px 12px;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+    box-shadow: 0 0 12px rgba(0, 217, 255, 0.25);
 }
 
 .filter-group {
@@ -264,10 +316,15 @@ body {
     gap: 20px;
     flex-wrap: wrap;
     background: var(--bg);
+    border: 1px solid var(--border);
     padding: 12px 16px;
-    border-radius: 8px;
+    border-radius: 9px;
     margin-bottom: 18px;
     font-size: 0.92rem;
+}
+
+.summary-strip strong {
+    color: var(--neon-blue);
 }
 
 .apps-grid {
@@ -282,19 +339,25 @@ body {
     gap: 12px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 9px;
     padding: 12px;
     cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.app-item:hover {
+    border-color: var(--border-strong);
 }
 
 .app-item.selected {
-    border-color: var(--primary);
-    background: rgba(59, 130, 246, 0.12);
+    border-color: var(--neon-blue);
+    background: rgba(0, 217, 255, 0.1);
+    box-shadow: 0 0 12px rgba(0, 217, 255, 0.18);
 }
 
 .app-icon {
     font-size: 1.3rem;
-    color: var(--primary);
+    color: var(--neon-blue);
 }
 
 .app-info h4 {
@@ -303,7 +366,7 @@ body {
 
 .app-info p {
     font-size: 0.8rem;
-    color: var(--text-muted);
+    color: #94a3b8;
 }
 
 .format-tabs, .script-actions {
@@ -316,10 +379,11 @@ body {
 .code-box {
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 9px;
     padding: 16px;
     overflow-x: auto;
     font-size: 0.86rem;
+    color: #7dd3fc;
 }
 
 .wizard-nav {
@@ -351,13 +415,14 @@ body {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    transition: transform 0.15s ease, border-color 0.15s ease;
+    transition: transform 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
     cursor: pointer;
 }
 
 .deal-card:hover {
-    transform: translateY(-2px);
-    border-color: var(--primary);
+    transform: translateY(-3px);
+    border-color: var(--neon-blue);
+    box-shadow: 0 8px 28px rgba(0, 217, 255, 0.24);
 }
 
 .deal-cover {
@@ -383,20 +448,29 @@ body {
 }
 
 .store-pill {
-    background: var(--surface-2);
+    background: rgba(2, 132, 199, 0.22);
+    color: #7dd3fc;
+    border: 1px solid rgba(56, 189, 248, 0.45);
     padding: 3px 9px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 600;
 }
 
 .discount-badge {
-    background: rgba(34, 197, 94, 0.16);
-    color: #4ade80;
+    background: rgba(0, 217, 255, 0.16);
+    color: var(--neon-blue);
+    border: 1px solid rgba(0, 217, 255, 0.5);
     padding: 3px 9px;
     border-radius: 999px;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     font-weight: 700;
+}
+
+.discount-badge.coming-soon {
+    background: rgba(37, 99, 235, 0.26);
+    color: #93c5fd;
+    border-color: rgba(96, 165, 250, 0.65);
 }
 
 .deal-title {
@@ -405,7 +479,7 @@ body {
 }
 
 .deal-note {
-    color: var(--text-muted);
+    color: #94a3b8;
     font-size: 0.87rem;
     margin-bottom: 10px;
     display: -webkit-box;
@@ -416,7 +490,7 @@ body {
 
 .deal-meta {
     font-size: 0.78rem;
-    color: var(--text-muted);
+    color: var(--neon-blue-bright);
 }
 
 .deal-footer {
@@ -427,6 +501,7 @@ body {
     border-top: 1px solid var(--border);
     padding: 12px 16px;
     flex-wrap: wrap;
+    background: rgba(3, 5, 10, 0.6);
 }
 
 .price-box {
@@ -436,14 +511,19 @@ body {
 }
 
 .sale-price {
-    font-size: 1.08rem;
+    font-size: 1.06rem;
     font-weight: 700;
-    color: #4ade80;
+    color: var(--neon-blue);
+}
+
+.sale-price.coming-soon-label {
+    color: var(--coming-soon);
+    font-size: 0.95rem;
 }
 
 .orig-price {
     font-size: 0.84rem;
-    color: var(--text-muted);
+    color: #64748b;
     text-decoration: line-through;
 }
 
@@ -455,18 +535,20 @@ body {
 }
 
 .upvote-btn {
-    background: var(--bg);
+    background: var(--surface);
     color: var(--text);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 6px 10px;
     cursor: pointer;
     font-size: 0.82rem;
+    transition: all 0.15s ease;
 }
 
-.upvote-btn.voted {
-    border-color: var(--primary);
-    color: var(--primary);
+.upvote-btn:hover, .upvote-btn.voted {
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+    box-shadow: 0 0 10px rgba(0, 217, 255, 0.22);
 }
 
 /* POPUP MODAL STYLES */
@@ -482,7 +564,8 @@ body {
 .modal-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(1, 2, 6, 0.86);
+    backdrop-filter: blur(4px);
 }
 
 .modal-card {
@@ -492,7 +575,8 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-strong);
+    box-shadow: 0 0 34px rgba(0, 217, 255, 0.24);
     border-radius: var(--radius);
     padding: 22px;
 }
@@ -559,9 +643,13 @@ body {
 .close-btn {
     background: none;
     border: none;
-    color: var(--text-muted);
+    color: #94a3b8;
     font-size: 1.5rem;
     cursor: pointer;
+}
+
+.close-btn:hover {
+    color: var(--neon-blue);
 }
 
 .auth-mode-tabs {
@@ -590,6 +678,11 @@ body {
     padding: 9px 11px;
 }
 
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: none;
+    border-color: var(--neon-blue);
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -604,13 +697,15 @@ body {
 }
 
 .form-feedback.success {
-    background: rgba(34, 197, 94, 0.16);
-    color: #4ade80;
+    background: rgba(0, 217, 255, 0.14);
+    color: var(--neon-blue);
+    border: 1px solid rgba(0, 217, 255, 0.4);
 }
 
 .form-feedback.error {
-    background: rgba(239, 68, 68, 0.16);
-    color: #f87171;
+    background: rgba(244, 63, 94, 0.16);
+    color: #fda4af;
+    border: 1px solid rgba(244, 63, 94, 0.45);
 }
 
 .mt-3 {

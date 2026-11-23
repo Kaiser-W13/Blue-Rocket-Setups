@@ -173,7 +173,353 @@ function normalizeCheapSharkDeal(item, index) {
 
     const ratingParts = [];
     if (item.steamRatingText) {
-        ratingParts.push(`Steam: ${item.steamRatingText}${item.steamRatingPercent ? ` (${item.steamRatingPercent}\%)` : ""}`); } if (item.metacriticScore && Number(item.metacriticScore) > 0) { ratingParts.push(`Metacritic: ${item.metacriticScore}`); } if (item.dealRating) { ratingParts.push(`Deal Rating: ${item.dealRating}/10`); } const metaNote = ratingParts.length > 0 ? `${ratingParts.join(" • ")}. ` : "";      return { id: dealID ? `cs-${dealID}` : `cs-item-${index}`, title, steamAppID, store: "Steam", discount, sale_price: validSale, orig_price: validOrig, image, url, note: `${metaNote}Active Steam discount via CheapShark. Click "Open Deal" to go straight to Steam.`.trim(), author_email: "CheapShark API (Steam)", upvotes: Math.round(Number.parseFloat(item.dealRating) * 10) \vert{}\vert{} 0 }; }  async function fetchCheapSharkSteamDeals() { if (!navigator.onLine) { return []; }      try { const response = await fetch(CHEAPSHARK_CONFIG.dealsUrl, { method: "GET" });          if (!response.ok) { throw new Error(`CheapShark returned HTTP ${response.status}`); }          const data = await response.json(); if (!Array.isArray(data)) return [];          return data .map((item, idx) => normalizeCheapSharkDeal(item, idx)) .filter(Boolean); } catch (err) { console.warn("CheapShark Steam fetch failed:", err.message); return []; } }  /* ------------------------------------------------------------- GAME DESCRIPTION POPUP MODAL ------------------------------------------------------------- */ function openGameDescriptionPopup(deal) { const safeUrl = sanitizeUrl(deal.url, getFallbackSteamUrl(deal.title, deal.steamAppID)); const safeImg = sanitizeUrl(deal.image, getFallbackSteamImage(deal.steamAppID));      const storeBadge = document.getElementById("popup-store-badge"); const discBadge = document.getElementById("popup-discount-badge"); if (storeBadge) storeBadge.textContent = "Steam";      if (discBadge) { discBadge.textContent = `-${Number(deal.discount) \vert{}\vert{} 0}\% OFF`; }      const imgEl = document.getElementById("popup-game-image"); if (imgEl) { imgEl.src = safeImg; imgEl.alt = `${deal.title} cover art`; imgEl.onerror = () => { imgEl.onerror = null; imgEl.src = getFallbackSteamImage(deal.steamAppID); }; }      const titleEl = document.getElementById("popup-game-title"); if (titleEl) titleEl.textContent = deal.title;      const saleEl = document.getElementById("popup-sale-price"); const origEl = document.getElementById("popup-orig-price"); if (saleEl && origEl) { saleEl.textContent = `$${Number(deal.sale_price).toFixed(2)}`; if (Number(deal.orig_price) > Number(deal.sale_price)) { origEl.textContent = `$${Number(deal.orig_price).toFixed(2)}`; origEl.classList.remove("hidden"); } else { origEl.classList.add("hidden"); } }      const metaEl = document.getElementById("popup-source-meta"); if (metaEl) metaEl.textContent = `Source: ${deal.author_email \vert{}\vert{} "CheapShark / Community"}`;      const descEl = document.getElementById("popup-game-description"); if (descEl) { descEl.textContent = deal.note \vert{}\vert{} "No additional description provided for this Steam deal."; }      const linkEl = document.getElementById("popup-store-link"); if (linkEl) { linkEl.href = safeUrl; linkEl.innerHTML = `Open Deal <i class="fa-solid fa-arrow-up-right-from-square"></i>`; }      openModal("game-info-modal"); }  /* ------------------------------------------------------------- AUTHENTICATION (SUPABASE + LOCAL DEMO FALLBACK) ------------------------------------------------------------- */ async function initAuthSession() { if (supabaseClient) { try { const { data: { session } } = await supabaseClient.auth.getSession(); if (session && session.user) { setCurrentUser(session.user); await loadCloudBundleForUser(session.user.id); }              supabaseClient.auth.onAuthStateChange(async (_event, session) => { if (session && session.user) { setCurrentUser(session.user); await loadCloudBundleForUser(session.user.id); } else { setCurrentUser(null); } }); return; } catch (err) { console.warn("Auth session check skipped:", err.message); } }      const savedDemoUser = localStorage.getItem("demoAuthUser"); if (savedDemoUser) { try { setCurrentUser(JSON.parse(savedDemoUser)); } catch (_e) { localStorage.removeItem("demoAuthUser"); } } }  function setCurrentUser(user) { state.currentUser = user; const guestControls = document.getElementById("auth-guest-controls"); const userControls = document.getElementById("auth-user-controls"); const emailDisplay = document.getElementById("user-email-display");      if (user) { guestControls?.classList.add("hidden"); userControls?.classList.remove("hidden"); if (emailDisplay) emailDisplay.textContent = user.email; } else { guestControls?.classList.remove("hidden"); userControls?.classList.add("hidden"); if (emailDisplay) emailDisplay.textContent = ""; } }  async function handleAuthSubmit(e) { e.preventDefault(); const emailEl = document.getElementById("auth-email"); const passEl = document.getElementById("auth-password"); const feedback = document.getElementById("auth-message"); const submitBtn = document.getElementById("auth-submit-btn");      const email = (emailEl?.value \vert{}\vert{} "").trim(); const password = passEl?.value \vert{}\vert{} "";      feedback?.classList.add("hidden"); if (submitBtn) submitBtn.disabled = true;      try { if (supabaseClient) { if (state.authMode === "signup") { const { data, error } = await supabaseClient.auth.signUp({ email, password }); if (error) throw error; if (feedback) showFormFeedback(feedback, "Account created! Check your email or sign in now.", "success"); if (data.user && data.session) { closeModal("auth-modal"); } } else { const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) throw error; closeModal("auth-modal"); } } else { const demoUser = { id: "demo-" + btoa(email), email }; localStorage.setItem("demoAuthUser", JSON.stringify(demoUser)); setCurrentUser(demoUser); closeModal("auth-modal"); } } catch (err) { if (feedback) showFormFeedback(feedback, err.message \vert{}\vert{} "Authentication failed.", "error"); } finally { if (submitBtn) submitBtn.disabled = false; } }  async function handleSignOut() { if (supabaseClient) { try { await supabaseClient.auth.signOut(); } catch (err) { console.warn("Sign out error:", err.message); } } localStorage.removeItem("demoAuthUser"); setCurrentUser(null); }  /* ------------------------------------------------------------- STATE MANAGEMENT & CLOUD SYNC ------------------------------------------------------------- */ async function saveStateToStorage() { const dataToSave = { selectedApps: Array.from(state.selectedApps), selectedGpu: state.selectedGpu }; localStorage.setItem("autoSetupState", JSON.stringify(dataToSave));      if (supabaseClient && navigator.onLine) { try { const payload = { session_id: state.currentUser ? state.currentUser.id : sessionId, user_id: state.currentUser ? state.currentUser.id : null, selected_apps: dataToSave.selectedApps, selected_gpu: dataToSave.selectedGpu, created_at: new Date() }; await supabaseClient .from("user_bundles") .upsert(payload, { onConflict: "session_id" }); } catch (err) { console.warn("Cloud sync skipped:", err.message); } } }  async function loadCloudBundleForUser(userId) { if (!supabaseClient \vert{}\vert{} !navigator.onLine) return; try { const { data, error } = await supabaseClient .from("user_bundles") .select("*") .eq("session_id", userId) .single();          if (!error && data) { state.selectedApps = new Set(data.selected_apps \vert{}\vert{} []); state.selectedGpu = data.selected_gpu \vert{}\vert{} "none"; const gpuRadio = document.querySelector(`input[name="gpu"][value="${state.selectedGpu}"]`); if (gpuRadio) gpuRadio.checked = true; renderAppGrid(); updateUI(); } } catch (e) { console.warn("Could not fetch user cloud bundle:", e.message); } }  function loadStateFromStorage() { const saved = localStorage.getItem("autoSetupState"); if (saved) { try { const parsed = JSON.parse(saved); state.selectedApps = new Set(parsed.selectedApps \vert{}\vert{} []); state.selectedGpu = parsed.selectedGpu \vert{}\vert{} "none"; const gpuRadio = document.querySelector(`input[name="gpu"][value="${state.selectedGpu}"]`); if (gpuRadio) gpuRadio.checked = true; } catch (e) { console.error("Failed to load saved state", e); } } }  /* ------------------------------------------------------------- GAME DEALS LOGIC ------------------------------------------------------------- */ async function loadGameDeals() { const localDeals = JSON.parse(localStorage.getItem("communityGameDeals") \vert{}\vert{} "[]") .map(d => ({ ...d, store: "Steam" })); let supabaseDeals = [];      if (supabaseClient && navigator.onLine) { try { const { data, error } = await supabaseClient .from("game_deals") .select("*") .order("upvotes", { ascending: false });              if (!error && data && data.length > 0) { supabaseDeals = data.map(d => ({ ...d, store: "Steam" })); } } catch (err) { console.warn("Using cached/default Steam deals:", err.message); } }      const cheapSharkDeals = await fetchCheapSharkSteamDeals(); const fallbackDeals = cheapSharkDeals.length > 0 ? [] : DEFAULT_STEAM_DEALS;      const seen = new Set(); const merged = [...localDeals, ...cheapSharkDeals, ...supabaseDeals, ...fallbackDeals].filter(item => { const key = String(item.title \vert{}\vert{} "").toLowerCase(); if (!key \vert{}\vert{} seen.has(key)) return false; seen.add(key); return true; });      state.gameDeals = merged; const searchInput = document.getElementById("deal-search"); renderGameDeals(getCurrentStoreFilter(), searchInput ? searchInput.value : ""); }  function renderGameDeals(storeFilter = "all", searchQuery = "") { const grid = document.getElementById("deals-grid"); if (!grid) return; grid.innerHTML = "";      const filtered = state.gameDeals.filter(deal => { const storeLabel = deal.store \vert{}\vert{} "Steam"; const matchesStore = storeFilter === "all" \vert{}\vert{} storeLabel === storeFilter; const q = (searchQuery \vert{}\vert{} "").toLowerCase(); const matchesSearch = !q \vert{}\vert{} deal.title.toLowerCase().includes(q) \vert{}\vert{} storeLabel.toLowerCase().includes(q) \vert{}\vert{} (deal.note && deal.note.toLowerCase().includes(q)); return matchesStore && matchesSearch; });      if (filtered.length === 0) { grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No Steam deals found matching your filter.</p>`; return; }      filtered.forEach(deal => { const isVoted = state.upvotedDeals.has(String(deal.id)); const safeUrl = escapeHtml(sanitizeUrl(deal.url, getFallbackSteamUrl(deal.title, deal.steamAppID))); const safeImg = escapeHtml(sanitizeUrl(deal.image, getFallbackSteamImage(deal.steamAppID))); const discountVal = Number(deal.discount) \vert{}\vert{} 0;          const priceHtml = `<span class="sale-price">$${Number(deal.sale_price).toFixed(2)}</span> ${Number(deal.orig_price) > Number(deal.sale_price) ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}`;
+        ratingParts.push(`Steam: ${item.steamRatingText}${item.steamRatingPercent ? ` (${item.steamRatingPercent}%)` : ""}`);
+    }
+    if (item.metacriticScore && Number(item.metacriticScore) > 0) {
+        ratingParts.push(`Metacritic: ${item.metacriticScore}`);
+    }
+    if (item.dealRating) {
+        ratingParts.push(`Deal Rating: ${item.dealRating}/10`);
+    }
+    const metaNote = ratingParts.length > 0 ? `${ratingParts.join(" • ")}. ` : "";
+
+    return {
+        id: dealID ? `cs-${dealID}` : `cs-item-${index}`,
+        title,
+        steamAppID,
+        store: "Steam",
+        discount,
+        sale_price: validSale,
+        orig_price: validOrig,
+        image,
+        url,
+        note: `${metaNote}Active Steam discount via CheapShark. Click "Open Deal" to go straight to Steam.`.trim(),
+        author_email: "CheapShark API (Steam)",
+        upvotes: Math.round(Number.parseFloat(item.dealRating) * 10) || 0
+    };
+}
+
+async function fetchCheapSharkSteamDeals() {
+    if (!navigator.onLine) {
+        return [];
+    }
+
+    try {
+        const response = await fetch(CHEAPSHARK_CONFIG.dealsUrl, {
+            method: "GET"
+        });
+
+        if (!response.ok) {
+            throw new Error(`CheapShark returned HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) return [];
+
+        return data
+            .map((item, idx) => normalizeCheapSharkDeal(item, idx))
+            .filter(Boolean);
+    } catch (err) {
+        console.warn("CheapShark Steam fetch failed:", err.message);
+        return [];
+    }
+}
+
+/* -------------------------------------------------------------
+   GAME DESCRIPTION POPUP MODAL
+   ------------------------------------------------------------- */
+function openGameDescriptionPopup(deal) {
+    const safeUrl = sanitizeUrl(deal.url, getFallbackSteamUrl(deal.title, deal.steamAppID));
+    const safeImg = sanitizeUrl(deal.image, getFallbackSteamImage(deal.steamAppID));
+
+    const storeBadge = document.getElementById("popup-store-badge");
+    const discBadge = document.getElementById("popup-discount-badge");
+    if (storeBadge) storeBadge.textContent = "Steam";
+
+    if (discBadge) {
+        discBadge.textContent = `-${Number(deal.discount) || 0}% OFF`;
+    }
+
+    const imgEl = document.getElementById("popup-game-image");
+    if (imgEl) {
+        imgEl.src = safeImg;
+        imgEl.alt = `${deal.title} cover art`;
+        imgEl.onerror = () => {
+            imgEl.onerror = null;
+            imgEl.src = getFallbackSteamImage(deal.steamAppID);
+        };
+    }
+
+    const titleEl = document.getElementById("popup-game-title");
+    if (titleEl) titleEl.textContent = deal.title;
+
+    const saleEl = document.getElementById("popup-sale-price");
+    const origEl = document.getElementById("popup-orig-price");
+    if (saleEl && origEl) {
+        saleEl.textContent = `$${Number(deal.sale_price).toFixed(2)}`;
+        if (Number(deal.orig_price) > Number(deal.sale_price)) {
+            origEl.textContent = `$${Number(deal.orig_price).toFixed(2)}`;
+            origEl.classList.remove("hidden");
+        } else {
+            origEl.classList.add("hidden");
+        }
+    }
+
+    const metaEl = document.getElementById("popup-source-meta");
+    if (metaEl) metaEl.textContent = `Source: ${deal.author_email || "CheapShark / Community"}`;
+
+    const descEl = document.getElementById("popup-game-description");
+    if (descEl) {
+        descEl.textContent = deal.note || "No additional description provided for this Steam deal.";
+    }
+
+    const linkEl = document.getElementById("popup-store-link");
+    if (linkEl) {
+        linkEl.href = safeUrl;
+        linkEl.innerHTML = `Open Deal <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+    }
+
+    openModal("game-info-modal");
+}
+
+/* -------------------------------------------------------------
+   AUTHENTICATION (SUPABASE + LOCAL DEMO FALLBACK)
+   ------------------------------------------------------------- */
+async function initAuthSession() {
+    if (supabaseClient) {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (session && session.user) {
+                setCurrentUser(session.user);
+                await loadCloudBundleForUser(session.user.id);
+            }
+
+            supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                if (session && session.user) {
+                    setCurrentUser(session.user);
+                    await loadCloudBundleForUser(session.user.id);
+                } else {
+                    setCurrentUser(null);
+                }
+            });
+            return;
+        } catch (err) {
+            console.warn("Auth session check skipped:", err.message);
+        }
+    }
+
+    const savedDemoUser = localStorage.getItem("demoAuthUser");
+    if (savedDemoUser) {
+        try {
+            setCurrentUser(JSON.parse(savedDemoUser));
+        } catch (_e) {
+            localStorage.removeItem("demoAuthUser");
+        }
+    }
+}
+
+function setCurrentUser(user) {
+    state.currentUser = user;
+    const guestControls = document.getElementById("auth-guest-controls");
+    const userControls = document.getElementById("auth-user-controls");
+    const emailDisplay = document.getElementById("user-email-display");
+
+    if (user) {
+        guestControls?.classList.add("hidden");
+        userControls?.classList.remove("hidden");
+        if (emailDisplay) emailDisplay.textContent = user.email;
+    } else {
+        guestControls?.classList.remove("hidden");
+        userControls?.classList.add("hidden");
+        if (emailDisplay) emailDisplay.textContent = "";
+    }
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    const emailEl = document.getElementById("auth-email");
+    const passEl = document.getElementById("auth-password");
+    const feedback = document.getElementById("auth-message");
+    const submitBtn = document.getElementById("auth-submit-btn");
+
+    const email = (emailEl?.value || "").trim();
+    const password = passEl?.value || "";
+
+    feedback?.classList.add("hidden");
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        if (supabaseClient) {
+            if (state.authMode === "signup") {
+                const { data, error } = await supabaseClient.auth.signUp({ email, password });
+                if (error) throw error;
+                if (feedback) showFormFeedback(feedback, "Account created! Check your email or sign in now.", "success");
+                if (data.user && data.session) {
+                    closeModal("auth-modal");
+                }
+            } else {
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+                if (error) throw error;
+                closeModal("auth-modal");
+            }
+        } else {
+            const demoUser = { id: "demo-" + btoa(email), email };
+            localStorage.setItem("demoAuthUser", JSON.stringify(demoUser));
+            setCurrentUser(demoUser);
+            closeModal("auth-modal");
+        }
+    } catch (err) {
+        if (feedback) showFormFeedback(feedback, err.message || "Authentication failed.", "error");
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+}
+
+async function handleSignOut() {
+    if (supabaseClient) {
+        try {
+            await supabaseClient.auth.signOut();
+        } catch (err) {
+            console.warn("Sign out error:", err.message);
+        }
+    }
+    localStorage.removeItem("demoAuthUser");
+    setCurrentUser(null);
+}
+
+/* -------------------------------------------------------------
+   STATE MANAGEMENT & CLOUD SYNC
+   ------------------------------------------------------------- */
+async function saveStateToStorage() {
+    const dataToSave = {
+        selectedApps: Array.from(state.selectedApps),
+        selectedGpu: state.selectedGpu
+    };
+    localStorage.setItem("autoSetupState", JSON.stringify(dataToSave));
+
+    if (supabaseClient && navigator.onLine) {
+        try {
+            const payload = {
+                session_id: state.currentUser ? state.currentUser.id : sessionId,
+                user_id: state.currentUser ? state.currentUser.id : null,
+                selected_apps: dataToSave.selectedApps,
+                selected_gpu: dataToSave.selectedGpu,
+                created_at: new Date()
+            };
+            await supabaseClient
+                .from("user_bundles")
+                .upsert(payload, { onConflict: "session_id" });
+        } catch (err) {
+            console.warn("Cloud sync skipped:", err.message);
+        }
+    }
+}
+
+async function loadCloudBundleForUser(userId) {
+    if (!supabaseClient || !navigator.onLine) return;
+    try {
+        const { data, error } = await supabaseClient
+            .from("user_bundles")
+            .select("*")
+            .eq("session_id", userId)
+            .single();
+
+        if (!error && data) {
+            state.selectedApps = new Set(data.selected_apps || []);
+            state.selectedGpu = data.selected_gpu || "none";
+            const gpuRadio = document.querySelector(`input[name="gpu"][value="${state.selectedGpu}"]`);
+            if (gpuRadio) gpuRadio.checked = true;
+            renderAppGrid();
+            updateUI();
+        }
+    } catch (e) {
+        console.warn("Could not fetch user cloud bundle:", e.message);
+    }
+}
+
+function loadStateFromStorage() {
+    const saved = localStorage.getItem("autoSetupState");
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            state.selectedApps = new Set(parsed.selectedApps || []);
+            state.selectedGpu = parsed.selectedGpu || "none";
+            const gpuRadio = document.querySelector(`input[name="gpu"][value="${state.selectedGpu}"]`);
+            if (gpuRadio) gpuRadio.checked = true;
+        } catch (e) {
+            console.error("Failed to load saved state", e);
+        }
+    }
+}
+
+/* -------------------------------------------------------------
+   GAME DEALS LOGIC
+   ------------------------------------------------------------- */
+async function loadGameDeals() {
+    const localDeals = JSON.parse(localStorage.getItem("communityGameDeals") || "[]")
+        .map(d => ({ ...d, store: "Steam" }));
+    let supabaseDeals = [];
+
+    if (supabaseClient && navigator.onLine) {
+        try {
+            const { data, error } = await supabaseClient
+                .from("game_deals")
+                .select("*")
+                .order("upvotes", { ascending: false });
+
+            if (!error && data && data.length > 0) {
+                supabaseDeals = data.map(d => ({ ...d, store: "Steam" }));
+            }
+        } catch (err) {
+            console.warn("Using cached/default Steam deals:", err.message);
+        }
+    }
+
+    const cheapSharkDeals = await fetchCheapSharkSteamDeals();
+    const fallbackDeals = cheapSharkDeals.length > 0 ? [] : DEFAULT_STEAM_DEALS;
+
+    const seen = new Set();
+    const merged = [...localDeals, ...cheapSharkDeals, ...supabaseDeals, ...fallbackDeals].filter(item => {
+        const key = String(item.title || "").toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    state.gameDeals = merged;
+    const searchInput = document.getElementById("deal-search");
+    renderGameDeals(getCurrentStoreFilter(), searchInput ? searchInput.value : "");
+}
+
+function renderGameDeals(storeFilter = "all", searchQuery = "") {
+    const grid = document.getElementById("deals-grid");
+    if (!grid) return;
+    grid.innerHTML = "";
+
+    const filtered = state.gameDeals.filter(deal => {
+        const storeLabel = deal.store || "Steam";
+        const matchesStore = storeFilter === "all" || storeLabel === storeFilter;
+        const q = (searchQuery || "").toLowerCase();
+        const matchesSearch = !q ||
+            deal.title.toLowerCase().includes(q) ||
+            storeLabel.toLowerCase().includes(q) ||
+            (deal.note && deal.note.toLowerCase().includes(q));
+        return matchesStore && matchesSearch;
+    });
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No Steam deals found matching your filter.</p>`;
+        return;
+    }
+
+    filtered.forEach(deal => {
+        const isVoted = state.upvotedDeals.has(String(deal.id));
+        const safeUrl = escapeHtml(sanitizeUrl(deal.url, getFallbackSteamUrl(deal.title, deal.steamAppID)));
+        const safeImg = escapeHtml(sanitizeUrl(deal.image, getFallbackSteamImage(deal.steamAppID)));
+        const discountVal = Number(deal.discount) || 0;
+
+        const priceHtml = `<span class="sale-price">$${Number(deal.sale_price).toFixed(2)}</span>
+            ${Number(deal.orig_price) > Number(deal.sale_price) ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}`;
 
         const card = document.createElement("article");
         card.className = "deal-card";
@@ -384,4 +730,326 @@ function toggleAppSelection(appId) {
         state.selectedApps.add(appId);
     }
     saveStateToStorage();
-    renderAppGrid(getCurrentCategoryFilter(), document.get
+    renderAppGrid(getCurrentCategoryFilter(), document.getElementById("app-search")?.value || "");
+    updateUI();
+}
+
+function getCurrentCategoryFilter() {
+    const activeBtn = document.querySelector("#category-filters .filter-btn.active");
+    return activeBtn ? activeBtn.dataset.cat : "all";
+}
+
+function updateUI() {
+    document.querySelectorAll(".step-item").forEach(item => {
+        const stepNum = parseInt(item.dataset.step, 10);
+        item.classList.remove("active", "completed");
+        if (stepNum === state.currentStep) {
+            item.classList.add("active");
+        } else if (stepNum < state.currentStep) {
+            item.classList.add("completed");
+        }
+    });
+
+    document.querySelectorAll(".wizard-step").forEach((step, idx) => {
+        step.classList.toggle("active", idx + 1 === state.currentStep);
+    });
+
+    const prevBtn = document.getElementById("prev-btn");
+    const nextBtn = document.getElementById("next-btn");
+    if (prevBtn) prevBtn.disabled = state.currentStep === 1;
+
+    if (nextBtn) {
+        if (state.currentStep === 4) {
+            nextBtn.style.display = "none";
+            generateScriptOutput();
+        } else {
+            nextBtn.style.display = "inline-flex";
+            nextBtn.innerHTML = `Next Step <i class="fa-solid fa-arrow-right"></i>`;
+        }
+    }
+
+    const floatingCount = document.getElementById("floating-count");
+    const totalCount = document.getElementById("total-selected-count");
+    if (floatingCount) floatingCount.textContent = state.selectedApps.size;
+    if (totalCount) totalCount.textContent = state.selectedApps.size;
+
+    let totalSize = 0;
+    state.selectedApps.forEach(id => {
+        const app = APP_DATABASE.find(a => a.id === id);
+        if (app) totalSize += app.size;
+    });
+
+    const sizeEl = document.getElementById("estimated-download-size");
+    if (sizeEl) {
+        sizeEl.textContent = totalSize > 1000 ?
+            `~${(totalSize / 1024).toFixed(1)} GB` : `~${totalSize} MB`;
+    }
+
+    const gpuNames = {
+        nvidia: "NVIDIA GeForce Driver",
+        amd: "AMD Radeon Driver",
+        intel: "Intel Arc/Graphics",
+        none: "Standard Display Driver"
+    };
+    const gpuNameEl = document.getElementById("selected-gpu-name");
+    if (gpuNameEl) {
+        gpuNameEl.textContent = gpuNames[state.selectedGpu] || "None";
+    }
+}
+
+/* -------------------------------------------------------------
+   EVENT LISTENERS & MODALS
+   ------------------------------------------------------------- */
+function setupEventListeners() {
+    document.querySelectorAll(".nav-tab").forEach(tab => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+            tab.classList.add("active");
+
+            const targetView = tab.dataset.view;
+            document.querySelectorAll(".view-section").forEach(sec => {
+                sec.classList.toggle("hidden", sec.id !== targetView);
+            });
+        });
+    });
+
+    on("close-game-info-modal", "click", () => closeModal("game-info-modal"));
+    on("popup-close-btn", "click", () => closeModal("game-info-modal"));
+
+    on("open-auth-modal-btn", "click", () => openModal("auth-modal"));
+    on("close-auth-modal", "click", () => closeModal("auth-modal"));
+    on("sign-out-btn", "click", handleSignOut);
+    on("auth-form", "submit", handleAuthSubmit);
+
+    document.querySelectorAll(".auth-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".auth-tab-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            state.authMode = btn.dataset.mode;
+
+            const isSignUp = state.authMode === "signup";
+            const titleEl = document.getElementById("auth-modal-title");
+            const submitEl = document.getElementById("auth-submit-btn");
+            if (titleEl) titleEl.textContent = isSignUp ? "Create an Account" : "Sign In to AutoSetup PC";
+            if (submitEl) submitEl.textContent = isSignUp ? "Create Account" : "Sign In";
+            document.getElementById("auth-message")?.classList.add("hidden");
+        });
+    });
+
+    on("open-deal-modal-btn", "click", () => {
+        if (!state.currentUser) {
+            openModal("auth-modal");
+            const authMsg = document.getElementById("auth-message");
+            if (authMsg) showFormFeedback(authMsg, "Sign in or create an account to share deals with the community!", "success");
+            return;
+        }
+        openModal("deal-modal");
+    });
+    on("close-deal-modal", "click", () => closeModal("deal-modal"));
+    on("deal-form", "submit", handleDealSubmit);
+
+    document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+        backdrop.addEventListener("click", () => {
+            backdrop.closest(".modal")?.classList.add("hidden");
+        });
+    });
+
+    on("deal-search", "input", (e) => {
+        renderGameDeals(getCurrentStoreFilter(), e.target.value);
+    });
+
+    document.querySelectorAll("#store-filters .filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll("#store-filters .filter-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const searchVal = document.getElementById("deal-search")?.value || "";
+            renderGameDeals(btn.dataset.store, searchVal);
+        });
+    });
+
+    on("next-btn", "click", () => {
+        if (state.currentStep < 4) {
+            state.currentStep++;
+            updateUI();
+        }
+    });
+
+    on("prev-btn", "click", () => {
+        if (state.currentStep > 1) {
+            state.currentStep--;
+            updateUI();
+        }
+    });
+
+    document.querySelectorAll(".step-item").forEach(item => {
+        item.addEventListener("click", () => {
+            state.currentStep = parseInt(item.dataset.step, 10);
+            updateUI();
+        });
+    });
+
+    document.querySelectorAll(".preset-card").forEach(card => {
+        card.addEventListener("click", () => {
+            const presetKey = card.dataset.preset;
+            if (PRESETS[presetKey]) {
+                state.selectedApps = new Set(PRESETS[presetKey]);
+                saveStateToStorage();
+                document.querySelectorAll(".preset-card").forEach(c => c.classList.remove("selected"));
+                card.classList.add("selected");
+                renderAppGrid();
+                updateUI();
+            }
+        });
+    });
+
+    document.querySelectorAll('input[name="gpu"]').forEach(radio => {
+        radio.addEventListener("change", (e) => {
+            state.selectedGpu = e.target.value;
+            saveStateToStorage();
+        });
+    });
+
+    on("toggle-gpu-guide-btn", "click", () => {
+        document.getElementById("gpu-guide-content")?.classList.toggle("hidden");
+    });
+
+    document.querySelectorAll("#category-filters .filter-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll("#category-filters .filter-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            const searchVal = document.getElementById("app-search")?.value || "";
+            renderAppGrid(btn.dataset.cat, searchVal);
+        });
+    });
+
+    on("app-search", "input", (e) => {
+        renderAppGrid(getCurrentCategoryFilter(), e.target.value);
+    });
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            state.activeFormat = btn.dataset.format;
+            generateScriptOutput();
+        });
+    });
+
+    on("reset-btn", "click", () => {
+        if (confirm("Reset all selections and start over?")) {
+            state.selectedApps.clear();
+            state.selectedGpu = "none";
+            const gpuNone = document.getElementById("gpu-none");
+            if (gpuNone) gpuNone.checked = true;
+            saveStateToStorage();
+            renderAppGrid();
+            updateUI();
+        }
+    });
+
+    on("copy-script-btn", "click", copyScriptToClipboard);
+    on("download-script-btn", "click", downloadScriptFile);
+}
+
+/* -------------------------------------------------------------
+   SCRIPT GENERATOR & HELPERS
+   ------------------------------------------------------------- */
+function generateScriptOutput() {
+    const appsList = Array.from(state.selectedApps);
+    const codeElement = document.getElementById("script-preview-code");
+    if (!codeElement) return;
+
+    const gpuPackages = {
+        nvidia: "Nvidia.GeForceExperience",
+        amd: "AMD.RadeonSoftware",
+        intel: "Intel.GraphicsDriver"
+    };
+
+    const allPackages = [...appsList];
+    if (gpuPackages[state.selectedGpu]) {
+        allPackages.unshift(gpuPackages[state.selectedGpu]);
+    }
+
+    if (allPackages.length === 0) {
+        codeElement.textContent = "# No software or drivers selected. Please go back and pick items to install.";
+        return;
+    }
+
+    let scriptText = "";
+
+    if (state.activeFormat === "ps1") {
+        scriptText = `# AutoSetup PC - Automated Windows Installation Script\n# Generated on: ${new Date().toLocaleDateString()}\n\nWrite-Host "Starting automated application installation..." -ForegroundColor Cyan\n\n`;
+        allPackages.forEach(pkg => {
+            scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
+        });
+        scriptText += `\nWrite-Host "All applications installed successfully!" -ForegroundColor Cyan`;
+    } else if (state.activeFormat === "bat") {
+        scriptText = `@echo off\nREM AutoSetup PC - Batch Installer\n\necho Starting automated application installation...\n\n`;
+        allPackages.forEach(pkg => {
+            scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
+        });
+        scriptText += `\necho All setup tasks completed!\npause`;
+    } else if (state.activeFormat === "cmd") {
+        scriptText = allPackages.map(pkg => `winget install --id "${pkg}" -e --silent`).join(" && ");
+    }
+
+    codeElement.textContent = scriptText;
+}
+
+function copyScriptToClipboard() {
+    const text = document.getElementById("script-preview-code")?.textContent || "";
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Script copied to clipboard!");
+    });
+}
+
+function downloadScriptFile() {
+    const text = document.getElementById("script-preview-code")?.textContent || "";
+    const extMap = { ps1: "ps1", bat: "bat", cmd: "txt" };
+    const ext = extMap[state.activeFormat] || "txt";
+
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `pc-setup-installer.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function openModal(id) {
+    document.getElementById(id)?.classList.remove("hidden");
+}
+
+function closeModal(id) {
+    document.getElementById(id)?.classList.add("hidden");
+}
+
+function showFormFeedback(el, message, type) {
+    if (!el) return;
+    el.textContent = message;
+    el.className = `form-feedback ${type}`;
+    el.classList.remove("hidden");
+}
+
+function escapeHtml(str) {
+    if (!str) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+function checkNetworkStatus() {
+    const banner = document.getElementById("network-banner");
+    if (!banner) return;
+    function updateStatus() {
+        banner.classList.toggle("hidden", navigator.onLine);
+    }
+    window.addEventListener("online", updateStatus);
+    window.addEventListener("offline", updateStatus);
+    updateStatus();
+}

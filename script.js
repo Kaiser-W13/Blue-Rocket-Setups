@@ -21,7 +21,7 @@ if (!sessionId) {
 
 // 2. RAPIDAPI CONFIGURATION (codemeoww - Game Deals & Freebies API)
 // Paste your RapidAPI key below and verify host/endpoint paths on RapidAPI's Endpoints tab.
-const RAPIDAPI_KEY = "YOUR_RAPIDAPI_KEY_HERE";
+const RAPIDAPI_KEY = "fc3e9b9815msh0d13f6d300e7037p18810bjsnd1b6157398e2";
 const RAPIDAPI_HOST = "game-deals-freebies-api.p.rapidapi.com";
 const RAPIDAPI_BASE_URL = `https://${RAPIDAPI_HOST}`;
 const RAPIDAPI_ENDPOINTS = {

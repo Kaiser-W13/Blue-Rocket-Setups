@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------
-   AutoSetup PC - Application Logic, Supabase Auth & Game Deals
+   AutoSetup PC - Application Logic, Supabase Auth & CheapShark Steam Deals
    ------------------------------------------------------------- */
 
 // 1. SUPABASE CONFIGURATION
@@ -7,10 +7,16 @@ const SUPABASE_URL = "https://zqaizebbuorztjywcucc.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_NUZwi3uL3Bur8ayZZSL0dw_H_1zH2SL";
 
 let supabaseClient = null;
-const isSupabaseConfigured = SUPABASE_URL.startsWith("http") && !SUPABASE_URL.includes("YOUR_SUPABASE");
+const isSupabaseConfigured = typeof SUPABASE_URL === "string" &&
+    SUPABASE_URL.startsWith("http") &&
+    !SUPABASE_URL.includes("YOUR_SUPABASE");
 
 if (window.supabase && isSupabaseConfigured) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } catch (err) {
+        console.warn("Supabase initialization skipped:", err.message);
+    }
 }
 
 let sessionId = localStorage.getItem("autosetup_session_id");
@@ -19,15 +25,18 @@ if (!sessionId) {
     localStorage.setItem("autosetup_session_id", sessionId);
 }
 
-// 2. RAPIDAPI CONFIGURATION (codemeoww - Game Deals & Freebies API)
-const RAPIDAPI_KEY = "fc3e9b9815msh0d13f6d300e7037p18810bjsnd1b6157398e2";
-const RAPIDAPI_HOST = "game-deals-freebies-api.p.rapidapi.com";
-const RAPIDAPI_BASE_URL = `https://game-deals-freebies-api.p.rapidapi.com`;
-const RAPIDAPI_ENDPOINTS = {
-    deals: "/deals",
-    freebies: "/freebies",
-    epic: "/epic"
+// 2. CHEAPSHARK API CONFIGURATION (Public API, no key required; storeID=1 is Steam)
+const CHEAPSHARK_CONFIG = {
+    dealsUrl: "https://www.cheapshark.com/api/1.0/deals?storeID=1&onSale=1&pageSize=30",
+    redirectBase: "https://www.cheapshark.com/redirect?dealID="
 };
+
+function on(id, eventName, handler) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener(eventName, handler);
+    }
+}
 
 // 3. MASTER CATALOG OF SOFTWARE APPLICATIONS
 const APP_DATABASE = [
@@ -69,48 +78,19 @@ const PRESETS = {
     developer: ["Microsoft.VisualStudioCode", "Git.Git", "Docker.DockerDesktop", "OpenJS.NodeJS", "Python.Python.3.11", "Postman.Postman"]
 };
 
-const DEFAULT_GAME_DEALS = [
+const DEFAULT_STEAM_DEALS = [
     {
-        id: "deal-1",
-        title: "Cyberpunk 2077: Ultimate Edition",
+        id: "steam-fallback-1",
+        title: "Cyberpunk 2077",
         store: "Steam",
-        discount: 53,
-        sale_price: 38.60,
-        orig_price: 82.98,
-        is_coming_soon: false,
+        discount: 50,
+        sale_price: 29.99,
+        orig_price: 59.99,
         image: "https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg",
         url: "https://store.steampowered.com/app/1091500/Cyberpunk_2077/",
-        note: "Active Steam sale. Open-world action RPG set in Night City with Phantom Liberty expansion.",
-        author_email: "alex.gamer@example.com",
+        note: "Open-world action RPG set in Night City. Starter fallback deal while offline or loading live CheapShark Steam data.",
+        author_email: "CheapShark / Steam",
         upvotes: 42
-    },
-    {
-        id: "deal-2",
-        title: "Current Epic Weekly Freebie",
-        store: "Epic Games Freebies",
-        discount: 100,
-        sale_price: 0.00,
-        orig_price: 19.99,
-        is_coming_soon: false,
-        image: "https://cdn2.unrealengine.com/egs-social-1920x1080-1920x1080-690624792.jpg",
-        url: "https://store.epicgames.com/en-US/free-games",
-        note: "Currently free on Epic Games Store for a limited time. Claim now to keep it in your library.",
-        author_email: "freebie_alert@example.com",
-        upvotes: 39
-    },
-    {
-        id: "deal-3",
-        title: "Next Week's Mystery Epic Freebie",
-        store: "Epic Games Freebies",
-        discount: 100,
-        sale_price: 0.00,
-        orig_price: 29.99,
-        is_coming_soon: true,
-        image: "https://cdn2.unrealengine.com/aw2-keyart-1920x1080-1920x1080-954976161.jpg",
-        url: "https://store.epicgames.com/en-US/free-games",
-        note: "Coming soon to Epic Games Freebies once the current weekly free game rotation ends.",
-        author_email: "epic_tracker@example.com",
-        upvotes: 31
     }
 ];
 
@@ -128,271 +108,155 @@ let state = {
 
 // 5. INITIALIZATION
 document.addEventListener("DOMContentLoaded", async () => {
-    loadStateFromStorage();
-    renderAppGrid();
-    setupEventListeners();
-    updateUI();
-    checkNetworkStatus();
+    try {
+        loadStateFromStorage();
+        renderAppGrid();
+        setupEventListeners();
+        updateUI();
+        checkNetworkStatus();
+    } catch (err) {
+        console.error("UI initialization error:", err);
+    }
+
     await initAuthSession();
     await loadGameDeals();
 });
 
 /* -------------------------------------------------------------
-   IMAGE, STORE LINK & RAPIDAPI INTEGRATION
+   CHEAPSHARK STEAM DEALS INTEGRATION
    ------------------------------------------------------------- */
-function normalizeStoreName(rawStore) {
-    const s = String(rawStore || "").trim().toLowerCase();
-    if (s.includes("epic") || s.includes("freebie") || s.includes("free")) {
-        return "Epic Games Freebies";
-    }
-    return "Steam";
-}
-
-function getFallbackStoreUrl(storeName, title = "", steamAppID = "") {
-    if (steamAppID) {
-        return `https://store.steampowered.com/app/${encodeURIComponent(steamAppID)}/`;
-    }
-    if (storeName === "Epic Games Freebies") {
-        return "https://store.epicgames.com/en-US/free-games";
-    }
-    const query = encodeURIComponent(title || "");
-    return title ? `https://store.steampowered.com/search/?term=${query}` : "https://store.steampowered.com/";
-}
-
-function sanitizeStoreUrl(rawUrl, storeName, title = "", steamAppID = "") {
-    const candidate = String(rawUrl || "").trim();
-    if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
-        return candidate;
-    }
-    return getFallbackStoreUrl(storeName, title, steamAppID);
-}
-
-function getFallbackGameImage(storeName, steamAppID = "") {
+function getFallbackSteamImage(steamAppID = "") {
     if (steamAppID) {
         return `https://cdn.cloudflare.steamstatic.com/steam/apps/${encodeURIComponent(steamAppID)}/header.jpg`;
-    }
-    if (storeName === "Epic Games Freebies") {
-        return "https://cdn2.unrealengine.com/egs-social-1920x1080-1920x1080-690624792.jpg";
     }
     return "https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg";
 }
 
-function sanitizeImageUrl(rawImage, storeName, steamAppID = "") {
-    const candidate = String(rawImage || "").trim();
+function getFallbackSteamUrl(title = "", steamAppID = "") {
+    if (steamAppID) {
+        return `https://store.steampowered.com/app/${encodeURIComponent(steamAppID)}/`;
+    }
+    return title
+        ? `https://store.steampowered.com/search/?term=${encodeURIComponent(title)}`
+        : "https://store.steampowered.com/";
+}
+
+function sanitizeUrl(rawUrl, fallbackUrl) {
+    const candidate = String(rawUrl || "").trim();
     if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
         return candidate;
     }
-    return getFallbackGameImage(storeName, steamAppID);
+    return fallbackUrl;
 }
 
-function parsePriceValue(val) {
-    if (val === undefined || val === null || val === "") return NaN;
-    const cleaned = String(val).replace(/[^0-9.]/g, "");
-    const num = Number.parseFloat(cleaned);
-    return Number.isNaN(num) ? NaN : num;
-}
+function normalizeCheapSharkDeal(item, index) {
+    if (!item || typeof item !== "object") return null;
 
-function normalizeRapidApiItem(item, categoryType, index) {
-    const title = item.title || item.name || item.gameTitle || item.game || "Untitled Game";
-    const steamAppID = item.steamAppID || item.steam_app_id || item.appId || "";
-    const isFreebieEndpoint = categoryType === "freebies" || categoryType === "epic";
-    const isUpcoming = Boolean(item._isUpcoming || item.upcoming || item.isUpcoming || String(item.status || "").toLowerCase().includes("upcoming"));
+    const title = item.title || "Untitled Steam Game";
+    const steamAppID = item.steamAppID || "";
+    const dealID = item.dealID || "";
 
-    const rawSale = parsePriceValue(item.salePrice ?? item.sale_price ?? item.price ?? item.currentPrice ?? item.finalPrice);
-    const rawOrig = parsePriceValue(item.normalPrice ?? item.orig_price ?? item.originalPrice ?? item.retailPrice ?? item.initialPrice);
+    const salePrice = Number.parseFloat(item.salePrice);
+    const origPrice = Number.parseFloat(item.normalPrice);
+    const validSale = Number.isNaN(salePrice) ? 0 : salePrice;
+    const validOrig = Number.isNaN(origPrice) ? validSale : origPrice;
 
-    const salePrice = Number.isNaN(rawSale) ? (isFreebieEndpoint ? 0 : 0) : rawSale;
-    const origPrice = Number.isNaN(rawOrig) ? salePrice : rawOrig;
-
-    let discount = Number.parseInt(String(item.discount ?? item.savings ?? item.discountPercent ?? "").replace(/[^0-9-]/g, ""), 10);
-    if (Number.isNaN(discount)) {
-        if (isFreebieEndpoint || salePrice === 0) {
-            discount = 100;
-        } else if (origPrice > 0 && salePrice < origPrice) {
-            discount = Math.round(((origPrice - salePrice) / origPrice) * 100);
-        } else {
-            discount = 0;
-        }
-    } else if (discount > 0 && discount < 1 && origPrice > 0 && salePrice < origPrice) {
-        discount = Math.round(discount * 100);
+    let discount = Math.round(Number.parseFloat(item.savings) || 0);
+    if (discount <= 0 && validOrig > 0 && validSale < validOrig) {
+        discount = Math.round(((validOrig - validSale) / validOrig) * 100);
     }
 
-    const isFreeItem = isFreebieEndpoint || Boolean(item.isFreebie || item.free || salePrice === 0 || discount === 100);
+    const redirectUrl = dealID
+        ? `${CHEAPSHARK_CONFIG.redirectBase}${encodeURIComponent(dealID)}`
+        : getFallbackSteamUrl(title, steamAppID);
 
-    // Keep only current and upcoming freebies on freebie endpoints
-    if (isFreebieEndpoint && !isFreeItem && !isUpcoming) {
-        return null;
+    const url = sanitizeUrl(redirectUrl, getFallbackSteamUrl(title, steamAppID));
+    const image = sanitizeUrl(item.thumb, getFallbackSteamImage(steamAppID));
+
+    const ratingParts = [];
+    if (item.steamRatingText) {
+        ratingParts.push(`Steam: ${item.steamRatingText}${item.steamRatingPercent ? ` (${item.steamRatingPercent}%)` : ""}`);
     }
-
-    const store = isFreebieEndpoint
-        ? "Epic Games Freebies"
-        : normalizeStoreName(item.store || item.storeName || item.platform || "Steam");
-
-    const rawLink = item.url || item.dealUrl || item.storeUrl || item.link || item.claimUrl || item.steamUrl || "";
-    const url = sanitizeStoreUrl(rawLink, store, title, steamAppID);
-
-    const rawImg = item.image || item.thumbnail || item.thumb || item.cover || item.banner || item.headerImage || item.capsule || "";
-    const image = sanitizeImageUrl(rawImg, store, steamAppID);
-
-    const historicLow = item.historicLow ?? item.historicalLow ?? item.cheapestPriceEver ?? item.cheapestPrice;
-    const historicText = historicLow !== undefined && historicLow !== null && historicLow !== ""
-        ? `Historic low: $${Number.parseFloat(String(historicLow).replace(/[^0-9.]/g, "")).toFixed(2)}. `
-        : "";
-
-    const defaultDesc = isUpcoming
-        ? "Coming soon to Epic Games Freebies. Check back once the weekly freebie unlocks."
-        : isFreeItem
-            ? "Currently free on Epic Games Freebies. Click 'Open Store Page' to claim."
-            : `Active Steam sale (${discount}% OFF). Click 'Open Store Page' to view on Steam.`;
-
-    const fullDescription = item.description || item.note || item.claimInstructions || defaultDesc;
+    if (item.metacriticScore && Number(item.metacriticScore) > 0) {
+        ratingParts.push(`Metacritic: ${item.metacriticScore}`);
+    }
+    if (item.dealRating) {
+        ratingParts.push(`Deal Rating: ${item.dealRating}/10`);
+    }
+    const metaNote = ratingParts.length > 0 ? `${ratingParts.join(" • ")}. ` : "";
 
     return {
-        id: item.id || `rapid-${categoryType}-${isUpcoming ? "up" : "cur"}-${index}-${title.slice(0, 12)}`,
+        id: dealID ? `cs-${dealID}` : `cs-item-${index}`,
         title,
-        store,
+        store: "Steam",
         discount,
-        sale_price: isFreeItem ? 0 : salePrice,
-        orig_price: origPrice,
-        is_coming_soon: Boolean(isFreebieEndpoint && isUpcoming),
+        sale_price: validSale,
+        orig_price: validOrig,
         image,
         url,
-        note: `${historicText}${fullDescription}`.trim(),
-        author_email: "Game Deals & Freebies API",
-        upvotes: Number.parseInt(item.upvotes ?? item.rating ?? 0, 10) || 0
+        note: `${metaNote}Active Steam discount via CheapShark. Click "Open Deal" to go to the store redirect.`.trim(),
+        author_email: "CheapShark API (Steam)",
+        upvotes: Math.round(Number.parseFloat(item.dealRating) * 10) || 0
     };
 }
 
-function extractRapidList(payload, categoryType) {
-    if (Array.isArray(payload)) {
-        return payload.map(item => ({ ...item, _isUpcoming: false }));
-    }
-    if (!payload || typeof payload !== "object") return [];
-
-    const combined = [];
-    if (Array.isArray(payload.active)) {
-        combined.push(...payload.active.map(item => ({ ...item, _isUpcoming: false })));
-    }
-    if (Array.isArray(payload.current)) {
-        combined.push(...payload.current.map(item => ({ ...item, _isUpcoming: false })));
-    }
-    if (Array.isArray(payload.upcoming)) {
-        combined.push(...payload.upcoming.map(item => ({ ...item, _isUpcoming: true })));
-    }
-    if (combined.length > 0) return combined;
-
-    const candidates = [
-        payload.deals,
-        payload.steam,
-        payload.steamDeals,
-        payload.freebies,
-        payload.giveaways,
-        payload.data,
-        payload.results,
-        payload.items,
-        payload.games
-    ];
-    for (const c of candidates) {
-        if (Array.isArray(c)) {
-            return c.map(item => ({
-                ...item,
-                _isUpcoming: Boolean(item.upcoming || item.isUpcoming || categoryType === "upcoming")
-            }));
-        }
-    }
-    return [];
-}
-
-async function fetchEndpoint(path, categoryType) {
-    const response = await fetch(`${RAPIDAPI_BASE_URL}${path}`, {
-        method: "GET",
-        headers: {
-            "X-RapidAPI-Key": RAPIDAPI_KEY,
-            "X-RapidAPI-Host": RAPIDAPI_HOST
-        }
-    });
-
-    if (!response.ok) {
-        throw new Error(`RapidAPI ${path} returned HTTP ${response.status}`);
-    }
-
-    const payload = await response.json();
-    const list = extractRapidList(payload, categoryType);
-    return list
-        .map((item, idx) => normalizeRapidApiItem(item, categoryType, idx))
-        .filter(Boolean);
-}
-
-async function fetchAllRapidApiDealsAndFreebies() {
-    const hasKey = RAPIDAPI_KEY && !RAPIDAPI_KEY.includes("YOUR_RAPIDAPI_KEY");
-    if (!hasKey || !navigator.onLine) {
+async function fetchCheapSharkSteamDeals() {
+    if (!navigator.onLine) {
         return [];
     }
 
-    const calls = [
-        fetchEndpoint(RAPIDAPI_ENDPOINTS.deals, "deals"),
-        fetchEndpoint(RAPIDAPI_ENDPOINTS.freebies, "freebies"),
-        fetchEndpoint(RAPIDAPI_ENDPOINTS.epic, "epic")
-    ];
+    try {
+        const response = await fetch(CHEAPSHARK_CONFIG.dealsUrl, {
+            method: "GET"
+        });
 
-    const results = await Promise.allSettled(calls);
-    const combined = [];
-
-    for (const res of results) {
-        if (res.status === "fulfilled" && Array.isArray(res.value)) {
-            combined.push(...res.value);
-        } else if (res.status === "rejected") {
-            console.warn("RapidAPI sub-endpoint skipped:", res.reason?.message || res.reason);
+        if (!response.ok) {
+            throw new Error(`CheapShark returned HTTP ${response.status}`);
         }
-    }
 
-    return combined;
+        const data = await response.json();
+        if (!Array.isArray(data)) return [];
+
+        return data
+            .map((item, idx) => normalizeCheapSharkDeal(item, idx))
+            .filter(Boolean);
+    } catch (err) {
+        console.warn("CheapShark Steam fetch failed:", err.message);
+        return [];
+    }
 }
 
 /* -------------------------------------------------------------
    GAME DESCRIPTION POPUP MODAL
    ------------------------------------------------------------- */
 function openGameDescriptionPopup(deal) {
-    const storeLabel = normalizeStoreName(deal.store);
-    const isComingSoon = Boolean(deal.is_coming_soon);
-    const isFree = !isComingSoon && (Number(deal.sale_price) === 0 || Number(deal.discount) === 100);
-    const safeUrl = sanitizeStoreUrl(deal.url, storeLabel, deal.title);
-    const safeImg = sanitizeImageUrl(deal.image, storeLabel);
+    const safeUrl = sanitizeUrl(deal.url, getFallbackSteamUrl(deal.title));
+    const safeImg = sanitizeUrl(deal.image, getFallbackSteamImage());
 
     const storeBadge = document.getElementById("popup-store-badge");
     const discBadge = document.getElementById("popup-discount-badge");
-    storeBadge.textContent = storeLabel;
+    if (storeBadge) storeBadge.textContent = "Steam";
 
-    discBadge.classList.toggle("coming-soon", isComingSoon);
-    if (isComingSoon) {
-        discBadge.textContent = "COMING SOON";
-    } else if (isFree) {
-        discBadge.textContent = "FREEBIE (100% OFF)";
-    } else {
+    if (discBadge) {
         discBadge.textContent = `-${Number(deal.discount) || 0}% OFF`;
     }
 
     const imgEl = document.getElementById("popup-game-image");
-    imgEl.src = safeImg;
-    imgEl.alt = `${deal.title} cover art`;
-    imgEl.onerror = () => {
-        imgEl.onerror = null;
-        imgEl.src = getFallbackGameImage(storeLabel);
-    };
+    if (imgEl) {
+        imgEl.src = safeImg;
+        imgEl.alt = `${deal.title} cover art`;
+        imgEl.onerror = () => {
+            imgEl.onerror = null;
+            imgEl.src = getFallbackSteamImage();
+        };
+    }
 
-    document.getElementById("popup-game-title").textContent = deal.title;
+    const titleEl = document.getElementById("popup-game-title");
+    if (titleEl) titleEl.textContent = deal.title;
 
     const saleEl = document.getElementById("popup-sale-price");
     const origEl = document.getElementById("popup-orig-price");
-    saleEl.classList.toggle("coming-soon-label", isComingSoon);
-
-    if (isComingSoon) {
-        saleEl.textContent = "Coming Soon";
-        origEl.classList.add("hidden");
-    } else if (isFree) {
-        saleEl.textContent = "FREE";
-        origEl.classList.add("hidden");
-    } else {
+    if (saleEl && origEl) {
         saleEl.textContent = `$${Number(deal.sale_price).toFixed(2)}`;
         if (Number(deal.orig_price) > Number(deal.sale_price)) {
             origEl.textContent = `$${Number(deal.orig_price).toFixed(2)}`;
@@ -402,18 +266,18 @@ function openGameDescriptionPopup(deal) {
         }
     }
 
-    document.getElementById("popup-source-meta").textContent = `Source: ${deal.author_email || "Community"}`;
-    document.getElementById("popup-game-description").textContent =
-        deal.note || "No additional description provided for this game offer.";
+    const metaEl = document.getElementById("popup-source-meta");
+    if (metaEl) metaEl.textContent = `Source: ${deal.author_email || "CheapShark / Community"}`;
+
+    const descEl = document.getElementById("popup-game-description");
+    if (descEl) {
+        descEl.textContent = deal.note || "No additional description provided for this Steam deal.";
+    }
 
     const linkEl = document.getElementById("popup-store-link");
-    linkEl.href = safeUrl;
-    if (isComingSoon) {
-        linkEl.innerHTML = `View on Epic Games <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
-    } else if (isFree) {
-        linkEl.innerHTML = `Claim Free on Store <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
-    } else {
-        linkEl.innerHTML = `Open ${storeLabel} Page <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+    if (linkEl) {
+        linkEl.href = safeUrl;
+        linkEl.innerHTML = `Open Deal <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
     }
 
     openModal("game-info-modal");
@@ -424,24 +288,33 @@ function openGameDescriptionPopup(deal) {
    ------------------------------------------------------------- */
 async function initAuthSession() {
     if (supabaseClient) {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session && session.user) {
-            setCurrentUser(session.user);
-            await loadCloudBundleForUser(session.user.id);
-        }
-
-        supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
             if (session && session.user) {
                 setCurrentUser(session.user);
                 await loadCloudBundleForUser(session.user.id);
-            } else {
-                setCurrentUser(null);
             }
-        });
-    } else {
-        const savedDemoUser = localStorage.getItem("demoAuthUser");
-        if (savedDemoUser) {
+
+            supabaseClient.auth.onAuthStateChange(async (_event, session) => {
+                if (session && session.user) {
+                    setCurrentUser(session.user);
+                    await loadCloudBundleForUser(session.user.id);
+                } else {
+                    setCurrentUser(null);
+                }
+            });
+            return;
+        } catch (err) {
+            console.warn("Auth session check skipped:", err.message);
+        }
+    }
+
+    const savedDemoUser = localStorage.getItem("demoAuthUser");
+    if (savedDemoUser) {
+        try {
             setCurrentUser(JSON.parse(savedDemoUser));
+        } catch (_e) {
+            localStorage.removeItem("demoAuthUser");
         }
     }
 }
@@ -453,32 +326,35 @@ function setCurrentUser(user) {
     const emailDisplay = document.getElementById("user-email-display");
 
     if (user) {
-        guestControls.classList.add("hidden");
-        userControls.classList.remove("hidden");
-        emailDisplay.textContent = user.email;
+        guestControls?.classList.add("hidden");
+        userControls?.classList.remove("hidden");
+        if (emailDisplay) emailDisplay.textContent = user.email;
     } else {
-        guestControls.classList.remove("hidden");
-        userControls.classList.add("hidden");
-        emailDisplay.textContent = "";
+        guestControls?.classList.remove("hidden");
+        userControls?.classList.add("hidden");
+        if (emailDisplay) emailDisplay.textContent = "";
     }
 }
 
 async function handleAuthSubmit(e) {
     e.preventDefault();
-    const email = document.getElementById("auth-email").value.trim();
-    const password = document.getElementById("auth-password").value;
+    const emailEl = document.getElementById("auth-email");
+    const passEl = document.getElementById("auth-password");
     const feedback = document.getElementById("auth-message");
     const submitBtn = document.getElementById("auth-submit-btn");
 
-    feedback.classList.add("hidden");
-    submitBtn.disabled = true;
+    const email = (emailEl?.value || "").trim();
+    const password = passEl?.value || "";
+
+    feedback?.classList.add("hidden");
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
         if (supabaseClient) {
             if (state.authMode === "signup") {
                 const { data, error } = await supabaseClient.auth.signUp({ email, password });
                 if (error) throw error;
-                showFormFeedback(feedback, "Account created! Check your email or sign in now.", "success");
+                if (feedback) showFormFeedback(feedback, "Account created! Check your email or sign in now.", "success");
                 if (data.user && data.session) {
                     closeModal("auth-modal");
                 }
@@ -494,15 +370,19 @@ async function handleAuthSubmit(e) {
             closeModal("auth-modal");
         }
     } catch (err) {
-        showFormFeedback(feedback, err.message || "Authentication failed.", "error");
+        if (feedback) showFormFeedback(feedback, err.message || "Authentication failed.", "error");
     } finally {
-        submitBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
 async function handleSignOut() {
     if (supabaseClient) {
-        await supabaseClient.auth.signOut();
+        try {
+            await supabaseClient.auth.signOut();
+        } catch (err) {
+            console.warn("Sign out error:", err.message);
+        }
     }
     localStorage.removeItem("demoAuthUser");
     setCurrentUser(null);
@@ -574,11 +454,11 @@ function loadStateFromStorage() {
 }
 
 /* -------------------------------------------------------------
-   GAME DEALS & FREEBIES LOGIC
+   GAME DEALS LOGIC
    ------------------------------------------------------------- */
 async function loadGameDeals() {
     const localDeals = JSON.parse(localStorage.getItem("communityGameDeals") || "[]")
-        .map(d => ({ ...d, store: normalizeStoreName(d.store) }));
+        .map(d => ({ ...d, store: "Steam" }));
     let supabaseDeals = [];
 
     if (supabaseClient && navigator.onLine) {
@@ -589,61 +469,58 @@ async function loadGameDeals() {
                 .order("upvotes", { ascending: false });
 
             if (!error && data && data.length > 0) {
-                supabaseDeals = data.map(d => ({ ...d, store: normalizeStoreName(d.store) }));
+                supabaseDeals = data.map(d => ({ ...d, store: "Steam" }));
             }
         } catch (err) {
-            console.warn("Using cached/default game deals:", err.message);
+            console.warn("Using cached/default Steam deals:", err.message);
         }
     }
 
-    const rapidDeals = await fetchAllRapidApiDealsAndFreebies();
-    const baseCommunityDeals = supabaseDeals.length > 0 ? supabaseDeals : DEFAULT_GAME_DEALS;
+    const cheapSharkDeals = await fetchCheapSharkSteamDeals();
+    const fallbackDeals = cheapSharkDeals.length > 0 ? [] : DEFAULT_STEAM_DEALS;
 
-    state.gameDeals = [...localDeals, ...rapidDeals, ...baseCommunityDeals];
-    renderGameDeals(getCurrentStoreFilter(), document.getElementById("deal-search").value);
+    const seen = new Set();
+    const merged = [...localDeals, ...cheapSharkDeals, ...supabaseDeals, ...fallbackDeals].filter(item => {
+        const key = String(item.title || "").toLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+
+    state.gameDeals = merged;
+    const searchInput = document.getElementById("deal-search");
+    renderGameDeals(getCurrentStoreFilter(), searchInput ? searchInput.value : "");
 }
 
 function renderGameDeals(storeFilter = "all", searchQuery = "") {
     const grid = document.getElementById("deals-grid");
+    if (!grid) return;
     grid.innerHTML = "";
 
     const filtered = state.gameDeals.filter(deal => {
-        const normalizedStore = normalizeStoreName(deal.store);
-        const matchesStore = storeFilter === "all" || normalizedStore === storeFilter;
-        const q = searchQuery.toLowerCase();
-        const matchesSearch = deal.title.toLowerCase().includes(q) ||
-                              normalizedStore.toLowerCase().includes(q) ||
-                              (deal.note && deal.note.toLowerCase().includes(q));
+        const storeLabel = deal.store || "Steam";
+        const matchesStore = storeFilter === "all" || storeLabel === storeFilter;
+        const q = (searchQuery || "").toLowerCase();
+        const matchesSearch = !q ||
+            deal.title.toLowerCase().includes(q) ||
+            storeLabel.toLowerCase().includes(q) ||
+            (deal.note && deal.note.toLowerCase().includes(q));
         return matchesStore && matchesSearch;
     });
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No Steam sales or Epic Games freebies found matching your filter.</p>`;
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No Steam deals found matching your filter.</p>`;
         return;
     }
 
     filtered.forEach(deal => {
-        const storeLabel = normalizeStoreName(deal.store);
-        const isComingSoon = Boolean(deal.is_coming_soon);
-        const isFree = !isComingSoon && (Number(deal.sale_price) === 0 || Number(deal.discount) === 100);
         const isVoted = state.upvotedDeals.has(String(deal.id));
-        const safeUrl = escapeHtml(sanitizeStoreUrl(deal.url, storeLabel, deal.title));
-        const safeImg = escapeHtml(sanitizeImageUrl(deal.image, storeLabel));
+        const safeUrl = escapeHtml(sanitizeUrl(deal.url, getFallbackSteamUrl(deal.title)));
+        const safeImg = escapeHtml(sanitizeUrl(deal.image, getFallbackSteamImage()));
+        const discountVal = Number(deal.discount) || 0;
 
-        const badgeText = isComingSoon
-            ? "COMING SOON"
-            : isFree
-                ? "FREEBIE"
-                : `-${Number(deal.discount) || 0}% OFF`;
-
-        const priceHtml = isComingSoon
-            ? `<span class="sale-price coming-soon-label">Coming Soon</span>`
-            : isFree
-                ? `<span class="sale-price">FREE</span>`
-                : `<span class="sale-price">$${Number(deal.sale_price).toFixed(2)}</span>
-                   ${Number(deal.orig_price) > Number(deal.sale_price) ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}`;
-
-        const actionText = isComingSoon ? "Preview" : isFree ? "Claim" : "Store";
+        const priceHtml = `<span class="sale-price">$${Number(deal.sale_price).toFixed(2)}</span>
+            ${Number(deal.orig_price) > Number(deal.sale_price) ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}`;
 
         const card = document.createElement("article");
         card.className = "deal-card";
@@ -651,8 +528,8 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
             <img class="deal-cover" src="${safeImg}" alt="${escapeHtml(deal.title)} cover" loading="lazy">
             <div class="deal-body">
                 <div class="deal-top">
-                    <span class="store-pill">${escapeHtml(storeLabel)}</span>
-                    <span class="discount-badge ${isComingSoon ? "coming-soon" : ""}">${escapeHtml(badgeText)}</span>
+                    <span class="store-pill">Steam</span>
+                    <span class="discount-badge">-${discountVal}% OFF</span>
                 </div>
                 <h3 class="deal-title">${escapeHtml(deal.title)}</h3>
                 ${deal.note ? `<p class="deal-note">${escapeHtml(deal.note)}</p>` : ""}
@@ -668,28 +545,28 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
                     <button type="button" class="btn btn-outline btn-sm info-popup-btn" title="View game description">
                         <i class="fa-solid fa-align-left"></i> Info
                     </button>
-                    <button type="button" class="upvote-btn ${isVoted ? "voted" : ""}" data-id="${deal.id}" title="Upvote">
-                        <i class="fa-solid fa-thumbs-up"></i> <span>${deal.upvotes || 0}</span>
+                    <button type="button" class="upvote-btn ${isVoted ? "voted" : ""}" data-id="${escapeHtml(String(deal.id))}" title="Upvote">
+                        <i class="fa-solid fa-thumbs-up"></i> <span>${Number(deal.upvotes) || 0}</span>
                     </button>
                     <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">
-                        ${actionText} <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                        Store <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
             </div>
         `;
 
         const imgEl = card.querySelector(".deal-cover");
-        imgEl.addEventListener("error", () => {
-            imgEl.src = getFallbackGameImage(storeLabel);
+        imgEl?.addEventListener("error", () => {
+            imgEl.src = getFallbackSteamImage();
         });
 
         card.addEventListener("click", (e) => {
             if (e.target.closest("a") || e.target.closest(".upvote-btn")) return;
-            openGameDescriptionPopup({ ...deal, store: storeLabel });
+            openGameDescriptionPopup({ ...deal, store: "Steam" });
         });
 
         const upvoteBtn = card.querySelector(".upvote-btn");
-        upvoteBtn.addEventListener("click", (e) => {
+        upvoteBtn?.addEventListener("click", (e) => {
             e.stopPropagation();
             handleUpvoteDeal(deal.id);
         });
@@ -704,39 +581,37 @@ async function handleDealSubmit(e) {
     const submitBtn = document.getElementById("deal-submit-btn");
 
     if (!state.currentUser) {
-        showFormFeedback(feedback, "Please sign in first to recommend a deal or freebie.", "error");
+        if (feedback) showFormFeedback(feedback, "Please sign in first to recommend a Steam deal.", "error");
         return;
     }
 
-    const store = normalizeStoreName(document.getElementById("deal-store").value);
-    const title = document.getElementById("deal-title").value.trim();
-    const rawUrl = document.getElementById("deal-url").value.trim();
-    const rawImg = document.getElementById("deal-image").value.trim();
-    const salePrice = parseFloat(document.getElementById("deal-sale-price").value);
-    const origPrice = parseFloat(document.getElementById("deal-orig-price").value);
-    const discount = parseInt(document.getElementById("deal-discount").value, 10);
+    const title = (document.getElementById("deal-title")?.value || "").trim();
+    const rawUrl = (document.getElementById("deal-url")?.value || "").trim();
+    const rawImg = (document.getElementById("deal-image")?.value || "").trim();
+    const salePrice = parseFloat(document.getElementById("deal-sale-price")?.value || "0");
+    const origPrice = parseFloat(document.getElementById("deal-orig-price")?.value || "0");
+    const discount = parseInt(document.getElementById("deal-discount")?.value || "0", 10);
 
     const newDeal = {
         id: "deal-" + Date.now(),
         title,
-        store,
+        store: "Steam",
         discount,
         sale_price: salePrice,
         orig_price: origPrice,
-        is_coming_soon: false,
-        image: sanitizeImageUrl(rawImg, store),
-        url: sanitizeStoreUrl(rawUrl, store, title),
-        note: document.getElementById("deal-note").value.trim(),
+        image: sanitizeUrl(rawImg, getFallbackSteamImage()),
+        url: sanitizeUrl(rawUrl, getFallbackSteamUrl(title)),
+        note: (document.getElementById("deal-note")?.value || "").trim(),
         author_email: state.currentUser.email,
         user_id: state.currentUser.id,
         upvotes: 1
     };
 
-    submitBtn.disabled = true;
+    if (submitBtn) submitBtn.disabled = true;
 
     try {
         if (supabaseClient && navigator.onLine) {
-            const { id, image, is_coming_soon, ...dbPayload } = newDeal;
+            const { id, image, ...dbPayload } = newDeal;
             const { data, error } = await supabaseClient
                 .from("game_deals")
                 .insert([dbPayload])
@@ -755,13 +630,13 @@ async function handleDealSubmit(e) {
         state.upvotedDeals.add(String(newDeal.id));
         localStorage.setItem("upvotedDeals", JSON.stringify(Array.from(state.upvotedDeals)));
 
-        document.getElementById("deal-form").reset();
+        document.getElementById("deal-form")?.reset();
         closeModal("deal-modal");
-        renderGameDeals(getCurrentStoreFilter(), document.getElementById("deal-search").value);
+        renderGameDeals(getCurrentStoreFilter(), document.getElementById("deal-search")?.value || "");
     } catch (err) {
-        showFormFeedback(feedback, err.message || "Could not post deal.", "error");
+        if (feedback) showFormFeedback(feedback, err.message || "Could not post deal.", "error");
     } finally {
-        submitBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -780,7 +655,7 @@ async function handleUpvoteDeal(dealId) {
     }
 
     localStorage.setItem("upvotedDeals", JSON.stringify(Array.from(state.upvotedDeals)));
-    renderGameDeals(getCurrentStoreFilter(), document.getElementById("deal-search").value);
+    renderGameDeals(getCurrentStoreFilter(), document.getElementById("deal-search")?.value || "");
 
     if (supabaseClient && navigator.onLine && typeof deal.id === "number") {
         try {
@@ -804,12 +679,15 @@ function getCurrentStoreFilter() {
    ------------------------------------------------------------- */
 function renderAppGrid(filterCat = "all", searchQuery = "") {
     const grid = document.getElementById("apps-grid");
+    if (!grid) return;
     grid.innerHTML = "";
 
     const filtered = APP_DATABASE.filter(app => {
         const matchesCat = filterCat === "all" || app.cat === filterCat;
-        const matchesSearch = app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              app.desc.toLowerCase().includes(searchQuery.toLowerCase());
+        const q = (searchQuery || "").toLowerCase();
+        const matchesSearch = !q ||
+            app.name.toLowerCase().includes(q) ||
+            app.desc.toLowerCase().includes(q);
         return matchesCat && matchesSearch;
     });
 
@@ -825,18 +703,18 @@ function renderAppGrid(filterCat = "all", searchQuery = "") {
         card.dataset.id = app.id;
 
         card.innerHTML = `
-            <input type="checkbox" id="chk-${app.id}" ${isChecked ? "checked" : ""}>
-            <i class="${app.icon} app-icon"></i>
+            <input type="checkbox" id="chk-${escapeHtml(app.id)}" ${isChecked ? "checked" : ""}>
+            <i class="${escapeHtml(app.icon)} app-icon"></i>
             <div class="app-info">
-                <h4>${app.name}</h4>
-                <p>${app.desc}</p>
+                <h4>${escapeHtml(app.name)}</h4>
+                <p>${escapeHtml(app.desc)}</p>
             </div>
         `;
 
         card.addEventListener("click", (e) => {
             if (e.target.tagName !== "INPUT") {
                 const chk = card.querySelector('input[type="checkbox"]');
-                chk.checked = !chk.checked;
+                if (chk) chk.checked = !chk.checked;
             }
             toggleAppSelection(app.id);
         });
@@ -852,7 +730,7 @@ function toggleAppSelection(appId) {
         state.selectedApps.add(appId);
     }
     saveStateToStorage();
-    renderAppGrid(getCurrentCategoryFilter(), document.getElementById("app-search").value);
+    renderAppGrid(getCurrentCategoryFilter(), document.getElementById("app-search")?.value || "");
     updateUI();
 }
 
@@ -878,26 +756,34 @@ function updateUI() {
 
     const prevBtn = document.getElementById("prev-btn");
     const nextBtn = document.getElementById("next-btn");
-    prevBtn.disabled = state.currentStep === 1;
+    if (prevBtn) prevBtn.disabled = state.currentStep === 1;
 
-    if (state.currentStep === 4) {
-        nextBtn.style.display = "none";
-        generateScriptOutput();
-    } else {
-        nextBtn.style.display = "inline-flex";
-        nextBtn.innerHTML = `Next Step <i class="fa-solid fa-arrow-right"></i>`;
+    if (nextBtn) {
+        if (state.currentStep === 4) {
+            nextBtn.style.display = "none";
+            generateScriptOutput();
+        } else {
+            nextBtn.style.display = "inline-flex";
+            nextBtn.innerHTML = `Next Step <i class="fa-solid fa-arrow-right"></i>`;
+        }
     }
 
-    document.getElementById("floating-count").textContent = state.selectedApps.size;
-    document.getElementById("total-selected-count").textContent = state.selectedApps.size;
+    const floatingCount = document.getElementById("floating-count");
+    const totalCount = document.getElementById("total-selected-count");
+    if (floatingCount) floatingCount.textContent = state.selectedApps.size;
+    if (totalCount) totalCount.textContent = state.selectedApps.size;
 
     let totalSize = 0;
     state.selectedApps.forEach(id => {
         const app = APP_DATABASE.find(a => a.id === id);
         if (app) totalSize += app.size;
     });
-    document.getElementById("estimated-download-size").textContent = totalSize > 1000 ?
-        `~${(totalSize / 1024).toFixed(1)} GB` : `~${totalSize} MB`;
+
+    const sizeEl = document.getElementById("estimated-download-size");
+    if (sizeEl) {
+        sizeEl.textContent = totalSize > 1000 ?
+            `~${(totalSize / 1024).toFixed(1)} GB` : `~${totalSize} MB`;
+    }
 
     const gpuNames = {
         nvidia: "NVIDIA GeForce Driver",
@@ -905,7 +791,10 @@ function updateUI() {
         intel: "Intel Arc/Graphics",
         none: "Standard Display Driver"
     };
-    document.getElementById("selected-gpu-name").textContent = gpuNames[state.selectedGpu] || "None";
+    const gpuNameEl = document.getElementById("selected-gpu-name");
+    if (gpuNameEl) {
+        gpuNameEl.textContent = gpuNames[state.selectedGpu] || "None";
+    }
 }
 
 /* -------------------------------------------------------------
@@ -924,13 +813,13 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById("close-game-info-modal").addEventListener("click", () => closeModal("game-info-modal"));
-    document.getElementById("popup-close-btn").addEventListener("click", () => closeModal("game-info-modal"));
+    on("close-game-info-modal", "click", () => closeModal("game-info-modal"));
+    on("popup-close-btn", "click", () => closeModal("game-info-modal"));
 
-    document.getElementById("open-auth-modal-btn").addEventListener("click", () => openModal("auth-modal"));
-    document.getElementById("close-auth-modal").addEventListener("click", () => closeModal("auth-modal"));
-    document.getElementById("sign-out-btn").addEventListener("click", handleSignOut);
-    document.getElementById("auth-form").addEventListener("submit", handleAuthSubmit);
+    on("open-auth-modal-btn", "click", () => openModal("auth-modal"));
+    on("close-auth-modal", "click", () => closeModal("auth-modal"));
+    on("sign-out-btn", "click", handleSignOut);
+    on("auth-form", "submit", handleAuthSubmit);
 
     document.querySelectorAll(".auth-tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
@@ -939,31 +828,33 @@ function setupEventListeners() {
             state.authMode = btn.dataset.mode;
 
             const isSignUp = state.authMode === "signup";
-            document.getElementById("auth-modal-title").textContent = isSignUp ? "Create an Account" : "Sign In to AutoSetup PC";
-            document.getElementById("auth-submit-btn").textContent = isSignUp ? "Create Account" : "Sign In";
-            document.getElementById("auth-message").classList.add("hidden");
+            const titleEl = document.getElementById("auth-modal-title");
+            const submitEl = document.getElementById("auth-submit-btn");
+            if (titleEl) titleEl.textContent = isSignUp ? "Create an Account" : "Sign In to AutoSetup PC";
+            if (submitEl) submitEl.textContent = isSignUp ? "Create Account" : "Sign In";
+            document.getElementById("auth-message")?.classList.add("hidden");
         });
     });
 
-    document.getElementById("open-deal-modal-btn").addEventListener("click", () => {
+    on("open-deal-modal-btn", "click", () => {
         if (!state.currentUser) {
             openModal("auth-modal");
             const authMsg = document.getElementById("auth-message");
-            showFormFeedback(authMsg, "Sign in or create an account to share deals with the community!", "success");
+            if (authMsg) showFormFeedback(authMsg, "Sign in or create an account to share deals with the community!", "success");
             return;
         }
         openModal("deal-modal");
     });
-    document.getElementById("close-deal-modal").addEventListener("click", () => closeModal("deal-modal"));
-    document.getElementById("deal-form").addEventListener("submit", handleDealSubmit);
+    on("close-deal-modal", "click", () => closeModal("deal-modal"));
+    on("deal-form", "submit", handleDealSubmit);
 
     document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
         backdrop.addEventListener("click", () => {
-            backdrop.closest(".modal").classList.add("hidden");
+            backdrop.closest(".modal")?.classList.add("hidden");
         });
     });
 
-    document.getElementById("deal-search").addEventListener("input", (e) => {
+    on("deal-search", "input", (e) => {
         renderGameDeals(getCurrentStoreFilter(), e.target.value);
     });
 
@@ -971,18 +862,19 @@ function setupEventListeners() {
         btn.addEventListener("click", () => {
             document.querySelectorAll("#store-filters .filter-btn").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
-            renderGameDeals(btn.dataset.store, document.getElementById("deal-search").value);
+            const searchVal = document.getElementById("deal-search")?.value || "";
+            renderGameDeals(btn.dataset.store, searchVal);
         });
     });
 
-    document.getElementById("next-btn").addEventListener("click", () => {
+    on("next-btn", "click", () => {
         if (state.currentStep < 4) {
             state.currentStep++;
             updateUI();
         }
     });
 
-    document.getElementById("prev-btn").addEventListener("click", () => {
+    on("prev-btn", "click", () => {
         if (state.currentStep > 1) {
             state.currentStep--;
             updateUI();
@@ -1017,19 +909,20 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById("toggle-gpu-guide-btn").addEventListener("click", () => {
-        document.getElementById("gpu-guide-content").classList.toggle("hidden");
+    on("toggle-gpu-guide-btn", "click", () => {
+        document.getElementById("gpu-guide-content")?.classList.toggle("hidden");
     });
 
     document.querySelectorAll("#category-filters .filter-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             document.querySelectorAll("#category-filters .filter-btn").forEach(b => b.classList.remove("active"));
             btn.classList.add("active");
-            renderAppGrid(btn.dataset.cat, document.getElementById("app-search").value);
+            const searchVal = document.getElementById("app-search")?.value || "";
+            renderAppGrid(btn.dataset.cat, searchVal);
         });
     });
 
-    document.getElementById("app-search").addEventListener("input", (e) => {
+    on("app-search", "input", (e) => {
         renderAppGrid(getCurrentCategoryFilter(), e.target.value);
     });
 
@@ -1042,19 +935,20 @@ function setupEventListeners() {
         });
     });
 
-    document.getElementById("reset-btn").addEventListener("click", () => {
+    on("reset-btn", "click", () => {
         if (confirm("Reset all selections and start over?")) {
             state.selectedApps.clear();
             state.selectedGpu = "none";
-            document.getElementById("gpu-none").checked = true;
+            const gpuNone = document.getElementById("gpu-none");
+            if (gpuNone) gpuNone.checked = true;
             saveStateToStorage();
             renderAppGrid();
             updateUI();
         }
     });
 
-    document.getElementById("copy-script-btn").addEventListener("click", copyScriptToClipboard);
-    document.getElementById("download-script-btn").addEventListener("click", downloadScriptFile);
+    on("copy-script-btn", "click", copyScriptToClipboard);
+    on("download-script-btn", "click", downloadScriptFile);
 }
 
 /* -------------------------------------------------------------
@@ -1063,6 +957,7 @@ function setupEventListeners() {
 function generateScriptOutput() {
     const appsList = Array.from(state.selectedApps);
     const codeElement = document.getElementById("script-preview-code");
+    if (!codeElement) return;
 
     const gpuPackages = {
         nvidia: "Nvidia.GeForceExperience",
@@ -1070,7 +965,7 @@ function generateScriptOutput() {
         intel: "Intel.GraphicsDriver"
     };
 
-    let allPackages = [...appsList];
+    const allPackages = [...appsList];
     if (gpuPackages[state.selectedGpu]) {
         allPackages.unshift(gpuPackages[state.selectedGpu]);
     }
@@ -1102,14 +997,14 @@ function generateScriptOutput() {
 }
 
 function copyScriptToClipboard() {
-    const text = document.getElementById("script-preview-code").textContent;
+    const text = document.getElementById("script-preview-code")?.textContent || "";
     navigator.clipboard.writeText(text).then(() => {
         alert("Script copied to clipboard!");
     });
 }
 
 function downloadScriptFile() {
-    const text = document.getElementById("script-preview-code").textContent;
+    const text = document.getElementById("script-preview-code")?.textContent || "";
     const extMap = { ps1: "ps1", bat: "bat", cmd: "txt" };
     const ext = extMap[state.activeFormat] || "txt";
 
@@ -1125,14 +1020,15 @@ function downloadScriptFile() {
 }
 
 function openModal(id) {
-    document.getElementById(id).classList.remove("hidden");
+    document.getElementById(id)?.classList.remove("hidden");
 }
 
 function closeModal(id) {
-    document.getElementById(id).classList.add("hidden");
+    document.getElementById(id)?.classList.add("hidden");
 }
 
 function showFormFeedback(el, message, type) {
+    if (!el) return;
     el.textContent = message;
     el.className = `form-feedback ${type}`;
     el.classList.remove("hidden");
@@ -1149,6 +1045,7 @@ function escapeHtml(str) {
 
 function checkNetworkStatus() {
     const banner = document.getElementById("network-banner");
+    if (!banner) return;
     function updateStatus() {
         banner.classList.toggle("hidden", navigator.onLine);
     }

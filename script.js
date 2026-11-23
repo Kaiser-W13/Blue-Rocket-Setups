@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------
-   BLUE ROCKET (AutoSetup PC) - App Logic, Auth & Game Deals
+   AutoSetup PC - Application Logic, Supabase Auth & Game Deals
    ------------------------------------------------------------- */
 
 // 1. SUPABASE CONFIGURATION
@@ -20,6 +20,7 @@ if (!sessionId) {
 }
 
 // 2. RAPIDAPI CONFIGURATION (codemeoww - Game Deals & Freebies API)
+// Paste your RapidAPI key below and verify host/endpoint paths on RapidAPI's Endpoints tab.
 const RAPIDAPI_KEY = "YOUR_RAPIDAPI_KEY_HERE";
 const RAPIDAPI_HOST = "game-deals-freebies-api.p.rapidapi.com";
 const RAPIDAPI_BASE_URL = `https://${RAPIDAPI_HOST}`;
@@ -849,7 +850,7 @@ function setupEventListeners() {
             state.authMode = btn.dataset.mode;
 
             const isSignUp = state.authMode === "signup";
-            document.getElementById("auth-modal-title").textContent = isSignUp ? "Create an Account" : "Sign In to BLUE ROCKET";
+            document.getElementById("auth-modal-title").textContent = isSignUp ? "Create an Account" : "Sign In to AutoSetup PC";
             document.getElementById("auth-submit-btn").textContent = isSignUp ? "Create Account" : "Sign In";
             document.getElementById("auth-message").classList.add("hidden");
         });
@@ -993,13 +994,13 @@ function generateScriptOutput() {
     let scriptText = "";
 
     if (state.activeFormat === "ps1") {
-        scriptText = `# BLUE ROCKET (AutoSetup PC) - Automated Windows Installation Script\n# Generated on: ${new Date().toLocaleDateString()}\n\nWrite-Host "Starting automated application installation..." -ForegroundColor Cyan\n\n`;
+        scriptText = `# AutoSetup PC - Automated Windows Installation Script\n# Generated on: ${new Date().toLocaleDateString()}\n\nWrite-Host "Starting automated application installation..." -ForegroundColor Green\n\n`;
         allPackages.forEach(pkg => {
             scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
         });
-        scriptText += `\nWrite-Host "All applications installed successfully!" -ForegroundColor Cyan`;
+        scriptText += `\nWrite-Host "All applications installed successfully!" -ForegroundColor Green`;
     } else if (state.activeFormat === "bat") {
-        scriptText = `@echo off\nREM BLUE ROCKET (AutoSetup PC) - Batch Installer\n\necho Starting automated application installation...\n\n`;
+        scriptText = `@echo off\nREM AutoSetup PC - Batch Installer\n\necho Starting automated application installation...\n\n`;
         allPackages.forEach(pkg => {
             scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
         });
@@ -1027,7 +1028,7 @@ function downloadScriptFile() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `blue-rocket-setup.${ext}`;
+    a.download = `pc-setup-installer.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoSetup PC — Setup Wizard & Live Steam Deals</title>
+    <title>AutoSetup PC — Live Steam Deals & Setup Wizard</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
     <div id="network-banner" class="network-banner hidden">
@@ -21,11 +21,11 @@
             </div>
 
             <nav class="main-nav">
-                <button type="button" class="nav-tab active" data-view="wizard-view">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Setup Wizard
-                </button>
-                <button type="button" class="nav-tab" data-view="deals-view">
+                <button type="button" class="nav-tab active" data-view="deals-view">
                     <i class="fa-solid fa-tags"></i> Steam Deals
+                </button>
+                <button type="button" class="nav-tab" data-view="wizard-view">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Setup Wizard
                 </button>
             </nav>
 
@@ -44,8 +44,54 @@
     </header>
 
     <main class="container main-content">
+        <!-- STEAM DEALS VIEW (DEFAULT FIRST PAGE) -->
+        <section id="deals-view" class="view-section">
+            <div class="deals-header">
+                <div>
+                    <h2>Live Steam Sales via CheapShark</h2>
+                    <p class="subtitle">Browse all active Steam deals (10 per page) or search across the full Steam catalog.</p>
+                </div>
+                <button id="open-deal-modal-btn" type="button" class="btn btn-primary">
+                    <i class="fa-solid fa-plus"></i> Share a Deal
+                </button>
+            </div>
+
+            <div class="toolbar">
+                <input type="text" id="deal-search" class="search-input" placeholder="Search all Steam games on sale (e.g., Cyberpunk, Portal, Witcher)...">
+                <div class="filter-group">
+                    <select id="deal-sort" class="search-input" style="flex: 0 0 auto; min-width: 170px;">
+                        <option value="Deal Rating">Sort: Best Deal Rating</option>
+                        <option value="Savings">Sort: Highest Discount %</option>
+                        <option value="Price">Sort: Lowest Price</option>
+                        <option value="Title">Sort: Title (A–Z)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="deals-status-bar" class="summary-strip" style="justify-content: space-between; align-items: center;">
+                <span id="deals-status-text">Loading Steam deals...</span>
+                <span id="deals-page-indicator">Page 1</span>
+            </div>
+
+            <div id="deals-grid" class="deals-grid"></div>
+
+            <!-- PAGINATION CONTROLS (10 DEALS PER PAGE) -->
+            <div class="pagination-bar">
+                <button id="deals-first-btn" type="button" class="btn btn-outline btn-sm" disabled>
+                    <i class="fa-solid fa-angles-left"></i> First
+                </button>
+                <button id="deals-prev-btn" type="button" class="btn btn-outline btn-sm" disabled>
+                    <i class="fa-solid fa-chevron-left"></i> Prev 10
+                </button>
+                <span id="deals-page-numbers" class="page-pill">Page 1 of 1</span>
+                <button id="deals-next-btn" type="button" class="btn btn-outline btn-sm" disabled>
+                    Next 10 <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        </section>
+
         <!-- WIZARD VIEW -->
-        <section id="wizard-view" class="view-section">
+        <section id="wizard-view" class="view-section hidden">
             <div class="stepper">
                 <div class="step-item active" data-step="1"><span>1</span> Presets</div>
                 <div class="step-item" data-step="2"><span>2</span> GPU Driver</div>
@@ -166,29 +212,6 @@
                 </button>
             </div>
         </section>
-
-        <!-- STEAM DEALS VIEW -->
-        <section id="deals-view" class="view-section hidden">
-            <div class="deals-header">
-                <div>
-                    <h2>Live Steam Sales via CheapShark</h2>
-                    <p class="subtitle">Active Steam discounts pulled via CheapShark. Click any card for full details.</p>
-                </div>
-                <button id="open-deal-modal-btn" type="button" class="btn btn-primary">
-                    <i class="fa-solid fa-plus"></i> Share a Deal
-                </button>
-            </div>
-
-            <div class="toolbar">
-                <input type="text" id="deal-search" class="search-input" placeholder="Search Steam games on sale...">
-                <div id="store-filters" class="filter-group">
-                    <button type="button" class="filter-btn active" data-store="all">All</button>
-                    <button type="button" class="filter-btn" data-store="Steam">Steam</button>
-                </div>
-            </div>
-
-            <div id="deals-grid" class="deals-grid"></div>
-        </section>
     </main>
 
     <!-- GAME DESCRIPTION POPUP MODAL -->
@@ -213,7 +236,7 @@
             <div class="popup-footer">
                 <button id="popup-close-btn" type="button" class="btn btn-outline">Close</button>
                 <a id="popup-store-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
-                    Open Deal <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    Open on Steam <i class="fa-solid fa-arrow-up-right-from-square"></i>
                 </a>
             </div>
         </div>
@@ -286,8 +309,8 @@
                     <input type="url" id="deal-image" placeholder="https://example.com/game-cover.jpg">
                 </div>
                 <div class="form-group">
-                    <label for="deal-url">Store / Deal URL</label>
-                    <input type="url" id="deal-url" required placeholder="https://store.steampowered.com/...">
+                    <label for="deal-url">Steam Store URL</label>
+                    <input type="url" id="deal-url" required placeholder="https://store.steampowered.com/app/...">
                 </div>
                 <div class="form-group">
                     <label for="deal-note">Description / Sale Details</label>

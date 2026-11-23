@@ -3,329 +3,239 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AutoSetup PC - Software Bundle & Community Game Deals</title>
+    <title>AutoSetup PC — Setup Wizard & Live Game Deals</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Supabase JS Client CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-    <!-- Offline & Network Resilience Banner -->
     <div id="network-banner" class="network-banner hidden">
-        <i class="fa-solid fa-wifi"></i>
-        <span>Connection unstable. Don't worry, your selections and generated scripts are stored locally!</span>
+        <i class="fa-solid fa-wifi"></i> You are currently offline. Showing cached/starter deals and saving locally.
     </div>
 
-    <!-- Header / Navbar -->
-    <header class="app-header">
-        <div class="container header-container">
-            <div class="logo">
-                <i class="fa-solid fa-laptop-code logo-icon"></i>
-                <div class="logo-text">
-                    <h1>AutoSetup PC</h1>
-                    <span class="subtitle">Software Bundle Builder & Community Game Deals</span>
-                </div>
+    <header class="site-header">
+        <div class="container header-inner">
+            <div class="brand">
+                <i class="fa-solid fa-desktop brand-icon"></i>
+                <span>AutoSetup <strong>PC</strong></span>
             </div>
 
-            <!-- Main Navigation Tabs -->
             <nav class="main-nav">
                 <button class="nav-tab active" data-view="wizard-view">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> PC Setup Wizard
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Setup Wizard
                 </button>
                 <button class="nav-tab" data-view="deals-view">
-                    <i class="fa-solid fa-tags"></i> Game Deals
+                    <i class="fa-solid fa-tags"></i> Game Deals &amp; Freebies
                 </button>
             </nav>
 
-            <!-- User Auth & Reset Actions -->
-            <div class="header-actions">
+            <div class="auth-area">
                 <div id="auth-guest-controls">
-                    <button id="open-auth-modal-btn" class="btn btn-primary btn-sm">
-                        <i class="fa-solid fa-user"></i> Sign In
+                    <button id="open-auth-modal-btn" class="btn btn-outline btn-sm">
+                        <i class="fa-solid fa-right-to-bracket"></i> Sign In
                     </button>
                 </div>
                 <div id="auth-user-controls" class="hidden">
-                    <span id="user-email-display" class="user-badge">user@example.com</span>
-                    <button id="sign-out-btn" class="btn btn-outline btn-sm" title="Sign Out">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                    </button>
+                    <span id="user-email-display" class="user-email"></span>
+                    <button id="sign-out-btn" class="btn btn-outline btn-sm">Sign Out</button>
                 </div>
-                <button id="reset-btn" class="btn btn-outline-danger btn-sm" title="Clear saved choices and start fresh">
-                    <i class="fa-solid fa-rotate-left"></i> Reset
-                </button>
             </div>
         </div>
     </header>
 
-    <!-- VIEW 1: PC SETUP WIZARD -->
-    <main id="wizard-view" class="container main-content view-section active">
-        <!-- Progress Stepper -->
-        <nav class="stepper-nav" aria-label="Setup Steps">
-            <div class="step-item active" data-step="1">
-                <div class="step-number">1</div>
-                <div class="step-label">Choose Preset</div>
+    <main class="container main-content">
+        <!-- WIZARD VIEW -->
+        <section id="wizard-view" class="view-section">
+            <div class="stepper">
+                <div class="step-item active" data-step="1"><span>1</span> Presets</div>
+                <div class="step-item" data-step="2"><span>2</span> GPU Driver</div>
+                <div class="step-item" data-step="3"><span>3</span> Apps (<span id="floating-count">0</span>)</div>
+                <div class="step-item" data-step="4"><span>4</span> Generate Script</div>
             </div>
-            <div class="step-line"></div>
-            <div class="step-item" data-step="2">
-                <div class="step-number">2</div>
-                <div class="step-label">GPU Drivers</div>
-            </div>
-            <div class="step-line"></div>
-            <div class="step-item" data-step="3">
-                <div class="step-number">3</div>
-                <div class="step-label">Select Apps</div>
-            </div>
-            <div class="step-line"></div>
-            <div class="step-item" data-step="4">
-                <div class="step-number">4</div>
-                <div class="step-label">Get Installer</div>
-            </div>
-        </nav>
 
-        <!-- STEP 1: PRESETS -->
-        <section id="step-1" class="wizard-step active">
-            <div class="step-header">
-                <h2>Step 1: How will you use this PC?</h2>
-                <p>Pick a preset to automatically select recommended software, or skip to customize from scratch.</p>
-            </div>
-            <div class="preset-grid">
-                <div class="preset-card" data-preset="office">
-                    <div class="preset-icon"><i class="fa-solid fa-briefcase"></i></div>
-                    <h3>Office & Work</h3>
-                    <p>Essential productivity tools, PDF readers, cloud storage, and messaging software.</p>
-                    <span class="badge">Chrome, Adobe Reader, Slack, LibreOffice, 7-Zip</span>
-                </div>
-                <div class="preset-card" data-preset="gaming">
-                    <div class="preset-icon"><i class="fa-solid fa-gamepad"></i></div>
-                    <h3>Gaming</h3>
-                    <p>Game launchers, voice chat, driver utilities, and performance monitoring software.</p>
-                    <span class="badge">Steam, Epic Games, Discord, GeForce/Radeon, MSI Afterburner</span>
-                </div>
-                <div class="preset-card" data-preset="creator">
-                    <div class="preset-icon"><i class="fa-solid fa-photo-film"></i></div>
-                    <h3>Content Creation</h3>
-                    <p>Video editing, audio recording, graphic design, and screen capturing tools.</p>
-                    <span class="badge">OBS Studio, Blender, GIMP, DaVinci Resolve, Audacity</span>
-                </div>
-                <div class="preset-card" data-preset="developer">
-                    <div class="preset-icon"><i class="fa-solid fa-code"></i></div>
-                    <h3>Developer</h3>
-                    <p>Code editors, terminals, runtime environments, Git tools, and API clients.</p>
-                    <span class="badge">VS Code, Git, Docker Desktop, NodeJS, Postman, Python</span>
+            <!-- Step 1 -->
+            <div class="wizard-step active">
+                <h2>Choose a Starting Preset</h2>
+                <p class="subtitle">Pick a bundle to pre-select common software, or skip ahead to customize manually.</p>
+                <div class="preset-grid">
+                    <div class="preset-card" data-preset="office">
+                        <i class="fa-solid fa-briefcase"></i>
+                        <h3>Office &amp; Productivity</h3>
+                        <p>Browser, PDF reader, chat, office suite, archiver.</p>
+                    </div>
+                    <div class="preset-card" data-preset="gaming">
+                        <i class="fa-solid fa-gamepad"></i>
+                        <h3>PC Gaming</h3>
+                        <p>Steam, Epic Games, Discord, MSI Afterburner, browser.</p>
+                    </div>
+                    <div class="preset-card" data-preset="creator">
+                        <i class="fa-solid fa-film"></i>
+                        <h3>Content Creator</h3>
+                        <p>OBS Studio, Blender, GIMP, DaVinci Resolve, Audacity.</p>
+                    </div>
+                    <div class="preset-card" data-preset="developer">
+                        <i class="fa-solid fa-code"></i>
+                        <h3>Developer</h3>
+                        <p>VS Code, Git, Docker, Node.js, Python, Postman.</p>
+                    </div>
                 </div>
             </div>
-        </section>
 
-        <!-- STEP 2: GPU DRIVERS -->
-        <section id="step-2" class="wizard-step">
-            <div class="step-header">
-                <h2>Step 2: Graphics Card (GPU) Setup</h2>
-                <p>Graphics drivers ensure smooth gaming, video editing, and screen output.</p>
-            </div>
-            
-            <div class="gpu-selection-container">
+            <!-- Step 2 -->
+            <div class="wizard-step">
+                <h2>Select Graphics Driver</h2>
+                <p class="subtitle">Include a GPU utility/driver package in your installer script.</p>
                 <div class="gpu-options">
-                    <label class="gpu-radio-card">
-                        <input type="radio" name="gpu" value="nvidia" id="gpu-nvidia">
-                        <div class="card-body">
-                            <i class="fa-brands fa-nvidia gpu-icon nvidia"></i>
-                            <h4>NVIDIA GeForce</h4>
-                            <p>Includes GeForce Experience / NVIDIA App</p>
-                        </div>
+                    <label class="gpu-card">
+                        <input type="radio" name="gpu" id="gpu-none" value="none" checked>
+                        <span>Standard Display Driver</span>
                     </label>
-
-                    <label class="gpu-radio-card">
-                        <input type="radio" name="gpu" value="amd" id="gpu-amd">
-                        <div class="card-body">
-                            <i class="fa-solid fa-microchip gpu-icon amd"></i>
-                            <h4>AMD Radeon</h4>
-                            <p>Includes AMD Software Adrenalin Edition</p>
-                        </div>
+                    <label class="gpu-card">
+                        <input type="radio" name="gpu" value="nvidia">
+                        <span>NVIDIA GeForce Experience</span>
                     </label>
-
-                    <label class="gpu-radio-card">
-                        <input type="radio" name="gpu" value="intel" id="gpu-intel">
-                        <div class="card-body">
-                            <i class="fa-solid fa-microchip gpu-icon intel"></i>
-                            <h4>Intel Arc / Iris</h4>
-                            <p>Includes Intel Graphics Command Center</p>
-                        </div>
+                    <label class="gpu-card">
+                        <input type="radio" name="gpu" value="amd">
+                        <span>AMD Radeon Software</span>
                     </label>
-
-                    <label class="gpu-radio-card">
-                        <input type="radio" name="gpu" value="none" id="gpu-none" checked>
-                        <div class="card-body">
-                            <i class="fa-solid fa-circle-question gpu-icon generic"></i>
-                            <h4>Skip / Basic</h4>
-                            <p>Use standard Windows Update display driver</p>
-                        </div>
+                    <label class="gpu-card">
+                        <input type="radio" name="gpu" value="intel">
+                        <span>Intel Graphics Driver</span>
                     </label>
                 </div>
+                <button id="toggle-gpu-guide-btn" type="button" class="btn btn-outline btn-sm mt-3">
+                    <i class="fa-solid fa-circle-info"></i> GPU Driver Tip
+                </button>
+                <div id="gpu-guide-content" class="info-box hidden">
+                    For clean driver installs on gaming rigs, always verify your exact GPU model before running silent installers.
+                </div>
+            </div>
 
-                <!-- Guided Helper Collapsible -->
-                <div class="gpu-guide-card">
-                    <button id="toggle-gpu-guide-btn" class="btn-guide-toggle">
-                        <i class="fa-solid fa-circle-info"></i> Not sure which GPU you have? Click here for a 10-second guide.
-                        <i class="fa-solid fa-chevron-down arrow-icon"></i>
-                    </button>
-                    <div id="gpu-guide-content" class="gpu-guide-content hidden">
-                        <ol class="guide-steps">
-                            <li>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Esc</kbd> to open Windows <strong>Task Manager</strong>.</li>
-                            <li>Click on the <strong>Performance</strong> tab on the left.</li>
-                            <li>Scroll down to find <strong>GPU 0</strong> (or <strong>GPU 1</strong>). The brand name (NVIDIA, AMD, or Intel) will be listed at the top right!</li>
-                        </ol>
+            <!-- Step 3 -->
+            <div class="wizard-step">
+                <h2>Select Applications</h2>
+                <div class="toolbar">
+                    <input type="text" id="app-search" class="search-input" placeholder="Search apps...">
+                    <div id="category-filters" class="filter-group">
+                        <button type="button" class="filter-btn active" data-cat="all">All</button>
+                        <button type="button" class="filter-btn" data-cat="browsers">Browsers</button>
+                        <button type="button" class="filter-btn" data-cat="gaming">Gaming</button>
+                        <button type="button" class="filter-btn" data-cat="media">Media</button>
+                        <button type="button" class="filter-btn" data-cat="developer">Developer</button>
+                        <button type="button" class="filter-btn" data-cat="utilities">Utilities</button>
                     </div>
                 </div>
-            </div>
-        </section>
 
-        <!-- STEP 3: APP SELECTION GRID -->
-        <section id="step-3" class="wizard-step">
-            <div class="step-header">
-                <h2>Step 3: Select Applications</h2>
-                <p>Choose individual apps to add or remove. Search or filter by category.</p>
-            </div>
-
-            <div class="grid-controls">
-                <div class="search-box">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="text" id="app-search" placeholder="Search apps (e.g. Chrome, Discord, Python)...">
+                <div class="summary-strip">
+                    <span>Selected Apps: <strong id="total-selected-count">0</strong></span>
+                    <span>Est. Download: <strong id="estimated-download-size">~0 MB</strong></span>
+                    <span>GPU: <strong id="selected-gpu-name">Standard Display Driver</strong></span>
                 </div>
-                <div class="category-filters" id="category-filters">
-                    <button class="filter-btn active" data-cat="all">All</button>
-                    <button class="filter-btn" data-cat="browsers">Browsers</button>
-                    <button class="filter-btn" data-cat="gaming">Gaming</button>
-                    <button class="filter-btn" data-cat="media">Media & Editing</button>
-                    <button class="filter-btn" data-cat="developer">Developer</button>
-                    <button class="filter-btn" data-cat="utilities">Utilities</button>
-                </div>
+
+                <div id="apps-grid" class="apps-grid"></div>
             </div>
 
-            <div class="apps-grid" id="apps-grid">
-                <!-- Dynamically generated via JavaScript -->
-            </div>
-        </section>
-
-        <!-- STEP 4: GENERATE SCRIPT BUNDLE -->
-        <section id="step-4" class="wizard-step">
-            <div class="step-header">
-                <h2>Step 4: Download & Run Installer Script</h2>
-                <p>We've combined all your selections into a clean, automated Windows installer bundle.</p>
-            </div>
-
-            <div class="summary-box">
-                <div class="summary-stats">
-                    <div class="stat">
-                        <span class="stat-value" id="total-selected-count">0</span>
-                        <span class="stat-label">Applications Selected</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value" id="estimated-download-size">~0 MB</span>
-                        <span class="stat-label">Est. Download Size</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-value" id="selected-gpu-name">None</span>
-                        <span class="stat-label">GPU Driver Selected</span>
-                    </div>
+            <!-- Step 4 -->
+            <div class="wizard-step">
+                <h2>Your Installer Script</h2>
+                <div class="format-tabs">
+                    <button type="button" class="tab-btn active" data-format="ps1">PowerShell (.ps1)</button>
+                    <button type="button" class="tab-btn" data-format="bat">Batch (.bat)</button>
+                    <button type="button" class="tab-btn" data-format="cmd">Single Command</button>
                 </div>
-            </div>
-
-            <div class="script-output-container">
-                <div class="tab-header">
-                    <button class="tab-btn active" data-format="ps1"><i class="fa-solid fa-terminal"></i> PowerShell (.ps1)</button>
-                    <button class="tab-btn" data-format="bat"><i class="fa-solid fa-file-code"></i> Batch (.bat)</button>
-                    <button class="tab-btn" data-format="cmd"><i class="fa-solid fa-code"></i> Direct CMD</button>
-                </div>
-                <div class="tab-body">
-                    <pre><code id="script-preview-code"># Generating script preview...</code></pre>
-                </div>
+                <pre class="code-box"><code id="script-preview-code"></code></pre>
                 <div class="script-actions">
-                    <button id="download-script-btn" class="btn btn-primary btn-lg">
-                        <i class="fa-solid fa-download"></i> Download Script File
+                    <button id="copy-script-btn" type="button" class="btn btn-outline">
+                        <i class="fa-regular fa-copy"></i> Copy Script
                     </button>
-                    <button id="copy-script-btn" class="btn btn-outline">
-                        <i class="fa-solid fa-copy"></i> Copy Script to Clipboard
+                    <button id="download-script-btn" type="button" class="btn btn-primary">
+                        <i class="fa-solid fa-download"></i> Download File
+                    </button>
+                    <button id="reset-btn" type="button" class="btn btn-danger">
+                        <i class="fa-solid fa-rotate-left"></i> Reset All
                     </button>
                 </div>
             </div>
 
-            <!-- How to run guide -->
-            <div class="run-instructions">
-                <h3><i class="fa-solid fa-circle-play"></i> How to run on your PC:</h3>
-                <ol>
-                    <li>Click <strong>Download Script File</strong> above.</li>
-                    <li>Right-click the downloaded <code>.ps1</code> or <code>.bat</code> file and select <strong>Run with PowerShell</strong> (or <strong>Run as Administrator</strong>).</li>
-                    <li>Sit back while Windows Package Manager automatically downloads and installs all your software silently!</li>
-                </ol>
+            <div class="wizard-nav">
+                <button id="prev-btn" type="button" class="btn btn-outline" disabled>
+                    <i class="fa-solid fa-arrow-left"></i> Previous
+                </button>
+                <button id="next-btn" type="button" class="btn btn-primary">
+                    Next Step <i class="fa-solid fa-arrow-right"></i>
+                </button>
             </div>
         </section>
 
-        <!-- Bottom Controls Bar -->
-        <div class="wizard-footer">
-            <button id="prev-btn" class="btn btn-secondary" disabled>
-                <i class="fa-solid fa-arrow-left"></i> Previous
-            </button>
-            <div class="selection-pill">
-                <span id="floating-count">0</span> apps selected
+        <!-- GAME DEALS & FREEBIES VIEW -->
+        <section id="deals-view" class="view-section hidden">
+            <div class="deals-header">
+                <div>
+                    <h2>Live Game Deals, Historic Lows &amp; Freebies</h2>
+                    <p class="subtitle">Click any game card to view its full description popup, or jump straight to the store page.</p>
+                </div>
+                <button id="open-deal-modal-btn" type="button" class="btn btn-primary">
+                    <i class="fa-solid fa-plus"></i> Share a Deal
+                </button>
             </div>
-            <button id="next-btn" class="btn btn-primary">
-                Next Step <i class="fa-solid fa-arrow-right"></i>
-            </button>
-        </div>
+
+            <div class="toolbar">
+                <input type="text" id="deal-search" class="search-input" placeholder="Search games, stores, or freebies...">
+                <div id="store-filters" class="filter-group">
+                    <button type="button" class="filter-btn active" data-store="all">All</button>
+                    <button type="button" class="filter-btn" data-store="Freebies">Freebies</button>
+                    <button type="button" class="filter-btn" data-store="Steam">Steam</button>
+                    <button type="button" class="filter-btn" data-store="Epic Games">Epic Games</button>
+                </div>
+            </div>
+
+            <div id="deals-grid" class="deals-grid"></div>
+        </section>
     </main>
 
-    <!-- VIEW 2: COMMUNITY GAME DEALS -->
-    <section id="deals-view" class="container main-content view-section hidden">
-        <div class="deals-header">
-            <div>
-                <h2><i class="fa-solid fa-fire text-danger"></i> Community Recommended Game Deals</h2>
-                <p>Discover and share top PC gaming discounts found by fellow users.</p>
+    <!-- GAME DESCRIPTION POPUP MODAL -->
+    <div id="game-info-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-card popup-card">
+            <div class="modal-header">
+                <div class="popup-badges">
+                    <span id="popup-store-badge" class="store-pill">Steam</span>
+                    <span id="popup-discount-badge" class="discount-badge">-50% OFF</span>
+                </div>
+                <button id="close-game-info-modal" type="button" class="close-btn">&times;</button>
             </div>
-            <button id="open-deal-modal-btn" class="btn btn-primary">
-                <i class="fa-solid fa-plus"></i> Share a Game Deal
-            </button>
-        </div>
-
-        <!-- Store Filter Bar -->
-        <div class="grid-controls">
-            <div class="search-box">
-                <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="deal-search" placeholder="Search games (e.g. Cyberpunk, Elden Ring)...">
+            <img id="popup-game-image" class="popup-game-image" src="" alt="Game cover image">
+            <h3 id="popup-game-title" class="popup-title">Game Title</h3>
+            <div class="popup-price-row">
+                <span id="popup-sale-price" class="sale-price">$0.00</span>
+                <span id="popup-orig-price" class="orig-price">$0.00</span>
+                <span id="popup-source-meta" class="deal-meta"></span>
             </div>
-            <div class="category-filters" id="store-filters">
-                <button class="filter-btn active" data-store="all">All Stores</button>
-                <button class="filter-btn" data-store="Steam">Steam</button>
-                <button class="filter-btn" data-store="Epic Games">Epic Games</button>
-                <button class="filter-btn" data-store="GOG">GOG</button>
-                <button class="filter-btn" data-store="Humble">Humble</button>
+            <p id="popup-game-description" class="popup-description"></p>
+            <div class="popup-footer">
+                <button id="popup-close-btn" type="button" class="btn btn-outline">Close</button>
+                <a id="popup-store-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                    Open Store Page <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                </a>
             </div>
         </div>
+    </div>
 
-        <!-- Game Deals Grid -->
-        <div class="deals-grid" id="deals-grid">
-            <!-- Populated dynamically via JS -->
-        </div>
-    </section>
-
-    <!-- AUTHENTICATION MODAL -->
+    <!-- AUTH MODAL -->
     <div id="auth-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-card">
-            <button class="modal-close" id="close-auth-modal">&times;</button>
             <div class="modal-header">
                 <h3 id="auth-modal-title">Sign In to AutoSetup PC</h3>
-                <p id="auth-modal-subtitle">Sync your custom app bundles across PCs and share game deals.</p>
+                <button id="close-auth-modal" type="button" class="close-btn">&times;</button>
             </div>
-
-            <div class="auth-tabs">
-                <button class="auth-tab-btn active" data-mode="signin">Sign In</button>
-                <button class="auth-tab-btn" data-mode="signup">Create Account</button>
+            <div class="auth-mode-tabs">
+                <button type="button" class="auth-tab-btn active" data-mode="signin">Sign In</button>
+                <button type="button" class="auth-tab-btn" data-mode="signup">Sign Up</button>
             </div>
-
-            <form id="auth-form" class="modal-form">
+            <form id="auth-form">
                 <div class="form-group">
-                    <label for="auth-email">Email Address</label>
+                    <label for="auth-email">Email</label>
                     <input type="email" id="auth-email" required placeholder="you@example.com">
                 </div>
                 <div class="form-group">
@@ -333,75 +243,65 @@
                     <input type="password" id="auth-password" required minlength="6" placeholder="••••••••">
                 </div>
                 <div id="auth-message" class="form-feedback hidden"></div>
-                <button type="submit" id="auth-submit-btn" class="btn btn-primary btn-block">
-                    Sign In
-                </button>
+                <button id="auth-submit-btn" type="submit" class="btn btn-primary btn-block">Sign In</button>
             </form>
         </div>
     </div>
 
-    <!-- SUBMIT GAME DEAL MODAL -->
+    <!-- DEAL MODAL -->
     <div id="deal-modal" class="modal hidden">
         <div class="modal-backdrop"></div>
         <div class="modal-card">
-            <button class="modal-close" id="close-deal-modal">&times;</button>
             <div class="modal-header">
-                <h3>Share a Game Deal</h3>
-                <p>Found a great discount? Recommend it to the community!</p>
+                <h3>Recommend a Game Deal or Freebie</h3>
+                <button id="close-deal-modal" type="button" class="close-btn">&times;</button>
             </div>
-
-            <form id="deal-form" class="modal-form">
+            <form id="deal-form">
                 <div class="form-group">
-                    <label for="deal-title">Game Title *</label>
-                    <input type="text" id="deal-title" required placeholder="e.g., The Witcher 3: Wild Hunt">
+                    <label for="deal-title">Game Title</label>
+                    <input type="text" id="deal-title" required placeholder="e.g., Portal 2">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="deal-store">Storefront *</label>
-                        <select id="deal-store" required>
+                        <label for="deal-store">Store</label>
+                        <select id="deal-store">
                             <option value="Steam">Steam</option>
                             <option value="Epic Games">Epic Games</option>
-                            <option value="GOG">GOG</option>
-                            <option value="Humble">Humble Bundle</option>
-                            <option value="Other">Other</option>
+                            <option value="Freebies">Freebies</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="deal-discount">Discount % *</label>
-                        <input type="number" id="deal-discount" min="1" max="100" required placeholder="75">
+                        <label for="deal-discount">Discount (%)</label>
+                        <input type="number" id="deal-discount" min="0" max="100" required value="50">
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="deal-sale-price">Sale Price ($) *</label>
-                        <input type="number" step="0.01" id="deal-sale-price" min="0" required placeholder="9.99">
+                        <label for="deal-sale-price">Sale Price ($)</label>
+                        <input type="number" id="deal-sale-price" step="0.01" min="0" required value="9.99">
                     </div>
                     <div class="form-group">
-                        <label for="deal-orig-price">Original Price ($) *</label>
-                        <input type="number" step="0.01" id="deal-orig-price" min="0" required placeholder="39.99">
+                        <label for="deal-orig-price">Original Price ($)</label>
+                        <input type="number" id="deal-orig-price" step="0.01" min="0" required value="19.99">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="deal-url">Store Link (URL) *</label>
-                    <input type="url" id="deal-url" required placeholder="https://store.steampowered.com/app/...">
+                    <label for="deal-image">Image URL (Optional)</label>
+                    <input type="url" id="deal-image" placeholder="https://example.com/game-cover.jpg">
                 </div>
                 <div class="form-group">
-                    <label for="deal-note">Why do you recommend it? (Optional)</label>
-                    <input type="text" id="deal-note" maxlength="140" placeholder="Historical low! Includes all DLCs.">
+                    <label for="deal-url">Store URL</label>
+                    <input type="url" id="deal-url" required placeholder="https://store.steampowered.com/...">
+                </div>
+                <div class="form-group">
+                    <label for="deal-note">Description / Historic Low Info</label>
+                    <textarea id="deal-note" rows="3" placeholder="Game summary, historic low details, or freebie claim window..."></textarea>
                 </div>
                 <div id="deal-message" class="form-feedback hidden"></div>
-                <button type="submit" id="deal-submit-btn" class="btn btn-primary btn-block">
-                    Post Game Deal
-                </button>
+                <button id="deal-submit-btn" type="submit" class="btn btn-primary btn-block">Post Deal</button>
             </form>
         </div>
     </div>
-
-    <footer class="app-footer">
-        <div class="container">
-            <p>&copy; 2026 AutoSetup PC Helper. Driven by Windows Package Manager (winget) & Supabase.</p>
-        </div>
-    </footer>
 
     <script src="script.js"></script>
 </body>

@@ -1,11 +1,10 @@
 /* -------------------------------------------------------------
-   AutoSetup PC - Application Logic, Supabase Auth & Game Deals
+   BLUE ROCKET (AutoSetup PC) - App Logic, Auth & Game Deals
    ------------------------------------------------------------- */
 
 // 1. SUPABASE CONFIGURATION
-// Replace these placeholders with your actual Supabase Project URL and Anon Key
-const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+const SUPABASE_URL = "https://zqaizebbuorztjywcucc.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NUZwi3uL3Bur8ayZZSL0dw_H_1zH2SL";
 
 let supabaseClient = null;
 const isSupabaseConfigured = SUPABASE_URL.startsWith("http") && !SUPABASE_URL.includes("YOUR_SUPABASE");
@@ -14,28 +13,34 @@ if (window.supabase && isSupabaseConfigured) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
-// Persistent anonymous session fallback
 let sessionId = localStorage.getItem("autosetup_session_id");
 if (!sessionId) {
     sessionId = "session_" + Math.random().toString(36).substring(2, 15);
     localStorage.setItem("autosetup_session_id", sessionId);
 }
 
-// 2. MASTER CATALOG OF SOFTWARE APPLICATIONS
+// 2. RAPIDAPI CONFIGURATION (codemeoww - Game Deals & Freebies API)
+const RAPIDAPI_KEY = "YOUR_RAPIDAPI_KEY_HERE";
+const RAPIDAPI_HOST = "game-deals-freebies-api.p.rapidapi.com";
+const RAPIDAPI_BASE_URL = `https://${RAPIDAPI_HOST}`;
+const RAPIDAPI_ENDPOINTS = {
+    deals: "/deals",
+    freebies: "/freebies",
+    epic: "/epic"
+};
+
+// 3. MASTER CATALOG OF SOFTWARE APPLICATIONS
 const APP_DATABASE = [
-    // Browsers
     { id: "Google.Chrome", name: "Google Chrome", cat: "browsers", size: 90, icon: "fa-brands fa-chrome", desc: "Fast & popular browser" },
     { id: "Mozilla.Firefox", name: "Mozilla Firefox", cat: "browsers", size: 85, icon: "fa-brands fa-firefox", desc: "Privacy-focused browser" },
     { id: "Brave.Brave", name: "Brave Browser", cat: "browsers", size: 95, icon: "fa-brands fa-brave", desc: "Ad-blocking fast browser" },
     { id: "Opera.Opera", name: "Opera", cat: "browsers", size: 80, icon: "fa-brands fa-opera", desc: "Feature-rich web browser" },
 
-    // Gaming
     { id: "Valve.Steam", name: "Steam", cat: "gaming", size: 60, icon: "fa-brands fa-steam", desc: "PC Gaming store & client" },
     { id: "EpicGames.EpicGamesLauncher", name: "Epic Games Launcher", cat: "gaming", size: 120, icon: "fa-solid fa-gamepad", desc: "Store & Fortnite launcher" },
     { id: "Discord.Discord", name: "Discord", cat: "gaming", size: 90, icon: "fa-brands fa-discord", desc: "Voice & text chat client" },
     { id: "Guru3D.MSIAfterburner", name: "MSI Afterburner", cat: "gaming", size: 50, icon: "fa-solid fa-gauge-high", desc: "GPU overclock & monitoring" },
 
-    // Media & Editing
     { id: "OBSProject.OBSStudio", name: "OBS Studio", cat: "media", size: 130, icon: "fa-solid fa-video", desc: "Screen recording & streaming" },
     { id: "BlenderFoundation.Blender", name: "Blender", cat: "media", size: 310, icon: "fa-solid fa-cube", desc: "3D creation suite" },
     { id: "GIMP.GIMP", name: "GIMP", cat: "media", size: 250, icon: "fa-solid fa-paintbrush", desc: "Open-source image editor" },
@@ -43,7 +48,6 @@ const APP_DATABASE = [
     { id: "Audacity.Audacity", name: "Audacity", cat: "media", size: 40, icon: "fa-solid fa-headphones", desc: "Audio editor & recorder" },
     { id: "Videolan.VLC", name: "VLC Media Player", cat: "media", size: 40, icon: "fa-solid fa-play-circle", desc: "Universal media player" },
 
-    // Developer
     { id: "Microsoft.VisualStudioCode", name: "VS Code", cat: "developer", size: 90, icon: "fa-solid fa-code", desc: "Lightweight code editor" },
     { id: "Git.Git", name: "Git", cat: "developer", size: 50, icon: "fa-brands fa-git-alt", desc: "Version control system" },
     { id: "Docker.DockerDesktop", name: "Docker Desktop", cat: "developer", size: 550, icon: "fa-brands fa-docker", desc: "Container application platform" },
@@ -51,7 +55,6 @@ const APP_DATABASE = [
     { id: "Python.Python.3.11", name: "Python 3.11", cat: "developer", size: 30, icon: "fa-brands fa-python", desc: "Popular programming language" },
     { id: "Postman.Postman", name: "Postman", cat: "developer", size: 140, icon: "fa-solid fa-network-wired", desc: "API development platform" },
 
-    // Utilities
     { id: "7zip.7zip", name: "7-Zip", cat: "utilities", size: 5, icon: "fa-solid fa-file-zipper", desc: "File archiver & unzipper" },
     { id: "Adobe.Acrobat.Reader.64-bit", name: "Adobe Acrobat Reader", cat: "utilities", size: 250, icon: "fa-solid fa-file-pdf", desc: "PDF document viewer" },
     { id: "SlackTechnologies.Slack", name: "Slack", cat: "utilities", size: 100, icon: "fa-brands fa-slack", desc: "Team collaboration chat" },
@@ -66,7 +69,6 @@ const PRESETS = {
     developer: ["Microsoft.VisualStudioCode", "Git.Git", "Docker.DockerDesktop", "OpenJS.NodeJS", "Python.Python.3.11", "Postman.Postman"]
 };
 
-// Default Starter Game Deals (Used offline or before Supabase table is populated)
 const DEFAULT_GAME_DEALS = [
     {
         id: "deal-1",
@@ -75,22 +77,24 @@ const DEFAULT_GAME_DEALS = [
         discount: 53,
         sale_price: 38.60,
         orig_price: 82.98,
-        url: "https://store.steampowered.com/",
-        note: "Includes Phantom Liberty expansion. Great benchmark for new GPUs!",
+        image: "https://cdn.cloudflare.steamstatic.com/steam/apps/1091500/header.jpg",
+        url: "https://store.steampowered.com/app/1091500/Cyberpunk_2077/",
+        note: "Open-world action RPG set in Night City. Includes the base game and Phantom Liberty expansion with heavy GPU ray-tracing support.",
         author_email: "alex.gamer@example.com",
         upvotes: 42
     },
     {
         id: "deal-2",
-        title: "The Witcher 3: Wild Hunt - Complete Edition",
-        store: "GOG",
-        discount: 75,
-        sale_price: 12.49,
-        orig_price: 49.99,
-        url: "https://www.gog.com/",
-        note: "DRM-free copy with all expansions included.",
-        author_email: "rpg_fan@example.com",
-        upvotes: 35
+        title: "Weekly Freebie Giveaway",
+        store: "Freebies",
+        discount: 100,
+        sale_price: 0.00,
+        orig_price: 19.99,
+        image: "https://cdn2.unrealengine.com/egs-social-1920x1080-1920x1080-690624792.jpg",
+        url: "https://store.epicgames.com/en-US/free-games",
+        note: "100% OFF limited-time freebie. Claim it before the weekly rotation resets to keep it in your library permanently.",
+        author_email: "freebie_alert@example.com",
+        upvotes: 39
     },
     {
         id: "deal-3",
@@ -99,26 +103,15 @@ const DEFAULT_GAME_DEALS = [
         discount: 50,
         sale_price: 24.99,
         orig_price: 49.99,
-        url: "https://store.epicgames.com/",
-        note: "Incredible ray-tracing showcase for NVIDIA/AMD cards.",
+        image: "https://cdn2.unrealengine.com/aw2-keyart-1920x1080-1920x1080-954976161.jpg",
+        url: "https://store.epicgames.com/en-US/p/alan-wake-2",
+        note: "Survival horror thriller following FBI agent Saga Anderson and writer Alan Wake across twin realities.",
         author_email: "night_springs@example.com",
         upvotes: 28
-    },
-    {
-        id: "deal-4",
-        title: "Hades II",
-        store: "Steam",
-        discount: 20,
-        sale_price: 23.99,
-        orig_price: 29.99,
-        url: "https://store.steampowered.com/",
-        note: "Runs effortlessly on any PC spec or handheld.",
-        author_email: "indie_lover@example.com",
-        upvotes: 19
     }
 ];
 
-// 3. APPLICATION STATE
+// 4. APPLICATION STATE
 let state = {
     currentStep: 1,
     selectedApps: new Set(),
@@ -130,7 +123,7 @@ let state = {
     upvotedDeals: new Set(JSON.parse(localStorage.getItem("upvotedDeals") || "[]"))
 };
 
-// 4. INITIALIZATION
+// 5. INITIALIZATION
 document.addEventListener("DOMContentLoaded", async () => {
     loadStateFromStorage();
     renderAppGrid();
@@ -140,6 +133,224 @@ document.addEventListener("DOMContentLoaded", async () => {
     await initAuthSession();
     await loadGameDeals();
 });
+
+/* -------------------------------------------------------------
+   IMAGE, STORE LINK & RAPIDAPI INTEGRATION
+   ------------------------------------------------------------- */
+function resolveStoreName(rawStore, forceFreebie = false) {
+    if (forceFreebie) return "Freebies";
+    const s = String(rawStore || "").toLowerCase();
+    if (s.includes("steam")) return "Steam";
+    if (s.includes("epic")) return "Epic Games";
+    if (s.includes("free")) return "Freebies";
+    return rawStore ? String(rawStore).trim() : "Steam";
+}
+
+function getFallbackStoreUrl(storeName, title = "") {
+    const query = encodeURIComponent(title || "");
+    switch (storeName) {
+        case "Steam":
+            return title ? `https://store.steampowered.com/search/?term=${query}` : "https://store.steampowered.com/";
+        case "Epic Games":
+            return title ? `https://store.epicgames.com/en-US/browse?q=${query}` : "https://store.epicgames.com/en-US/free-games";
+        case "Freebies":
+            return "https://store.epicgames.com/en-US/free-games";
+        default:
+            return "https://store.steampowered.com/";
+    }
+}
+
+function sanitizeStoreUrl(rawUrl, storeName, title) {
+    const candidate = String(rawUrl || "").trim();
+    if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
+        return candidate;
+    }
+    return getFallbackStoreUrl(storeName, title);
+}
+
+function getFallbackGameImage(storeName) {
+    if (storeName === "Epic Games" || storeName === "Freebies") {
+        return "https://cdn2.unrealengine.com/egs-social-1920x1080-1920x1080-690624792.jpg";
+    }
+    return "https://cdn.cloudflare.steamstatic.com/steam/apps/730/header.jpg";
+}
+
+function sanitizeImageUrl(rawImage, storeName) {
+    const candidate = String(rawImage || "").trim();
+    if (candidate.startsWith("https://") || candidate.startsWith("http://")) {
+        return candidate;
+    }
+    return getFallbackGameImage(storeName);
+}
+
+function normalizeRapidApiItem(item, categoryType, index) {
+    const title = item.title || item.name || item.gameTitle || item.game || "Untitled Game Deal";
+    const isFreebieCategory = categoryType === "freebies" || categoryType === "epic";
+    const salePriceRaw = item.salePrice ?? item.sale_price ?? item.price ?? item.currentPrice ?? 0;
+    const origPriceRaw = item.normalPrice ?? item.orig_price ?? item.originalPrice ?? item.retailPrice ?? salePriceRaw;
+    const salePrice = Number.parseFloat(salePriceRaw) || 0;
+    const origPrice = Number.parseFloat(origPriceRaw) || salePrice;
+
+    let discount = Number.parseInt(item.discount ?? item.savings ?? item.discountPercent, 10);
+    if (Number.isNaN(discount)) {
+        if (salePrice === 0 && origPrice > 0) {
+            discount = 100;
+        } else if (origPrice > 0) {
+            discount = Math.round(((origPrice - salePrice) / origPrice) * 100);
+        } else {
+            discount = isFreebieCategory ? 100 : 0;
+        }
+    }
+
+    const isFreebie = isFreebieCategory || Boolean(item.isFreebie || item.free || salePrice === 0 || discount === 100);
+    const store = resolveStoreName(
+        item.store || item.storeName || item.platform || (categoryType === "epic" ? "Epic Games" : "Steam"),
+        isFreebie
+    );
+
+    const rawLink = item.url || item.dealUrl || item.storeUrl || item.link || item.claimUrl || item.steamUrl || "";
+    const url = sanitizeStoreUrl(rawLink, store, title);
+
+    const rawImg = item.image || item.thumbnail || item.thumb || item.cover || item.banner || item.headerImage || "";
+    const image = sanitizeImageUrl(rawImg, store);
+
+    const historicLow = item.historicLow ?? item.historicalLow ?? item.cheapestPriceEver ?? item.cheapestPrice;
+    const historicText = historicLow !== undefined && historicLow !== null && historicLow !== ""
+        ? `Historic low: $${Number.parseFloat(historicLow).toFixed(2)}. `
+        : "";
+    const defaultDesc = isFreebie
+        ? `Limited-time freebie / giveaway on ${store}. Click "Open Store Page" to claim.`
+        : `Active game deal & price tracker listing on ${store}.`;
+    const fullDescription = item.description || item.note || item.claimInstructions || defaultDesc;
+
+    return {
+        id: item.id || `rapid-${categoryType}-${index}-${title.slice(0, 12)}`,
+        title,
+        store,
+        discount,
+        sale_price: salePrice,
+        orig_price: origPrice,
+        image,
+        url,
+        note: `${historicText}${fullDescription}`.trim(),
+        author_email: "Game Deals & Freebies API",
+        upvotes: Number.parseInt(item.upvotes ?? item.rating ?? 0, 10) || 0
+    };
+}
+
+function extractRapidList(payload) {
+    if (Array.isArray(payload)) return payload;
+    if (!payload || typeof payload !== "object") return [];
+
+    const combined = [];
+    if (Array.isArray(payload.active)) combined.push(...payload.active);
+    if (Array.isArray(payload.upcoming)) combined.push(...payload.upcoming);
+    if (combined.length > 0) return combined;
+
+    const candidates = [
+        payload.deals,
+        payload.freebies,
+        payload.giveaways,
+        payload.data,
+        payload.results,
+        payload.items,
+        payload.games
+    ];
+    for (const c of candidates) {
+        if (Array.isArray(c)) return c;
+    }
+    return [];
+}
+
+async function fetchEndpoint(path, categoryType) {
+    const response = await fetch(`${RAPIDAPI_BASE_URL}${path}`, {
+        method: "GET",
+        headers: {
+            "X-RapidAPI-Key": RAPIDAPI_KEY,
+            "X-RapidAPI-Host": RAPIDAPI_HOST
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`RapidAPI ${path} returned HTTP ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const list = extractRapidList(payload);
+    return list.map((item, idx) => normalizeRapidApiItem(item, categoryType, idx));
+}
+
+async function fetchAllRapidApiDealsAndFreebies() {
+    const hasKey = RAPIDAPI_KEY && !RAPIDAPI_KEY.includes("YOUR_RAPIDAPI_KEY");
+    if (!hasKey || !navigator.onLine) {
+        return [];
+    }
+
+    const calls = [
+        fetchEndpoint(RAPIDAPI_ENDPOINTS.deals, "deals"),
+        fetchEndpoint(RAPIDAPI_ENDPOINTS.freebies, "freebies"),
+        fetchEndpoint(RAPIDAPI_ENDPOINTS.epic, "epic")
+    ];
+
+    const results = await Promise.allSettled(calls);
+    const combined = [];
+
+    for (const res of results) {
+        if (res.status === "fulfilled" && Array.isArray(res.value)) {
+            combined.push(...res.value);
+        } else if (res.status === "rejected") {
+            console.warn("RapidAPI sub-endpoint skipped:", res.reason?.message || res.reason);
+        }
+    }
+
+    return combined;
+}
+
+/* -------------------------------------------------------------
+   GAME DESCRIPTION POPUP MODAL
+   ------------------------------------------------------------- */
+function openGameDescriptionPopup(deal) {
+    const storeLabel = deal.store || "Steam";
+    const isFree = Number(deal.sale_price) === 0 || Number(deal.discount) === 100;
+    const safeUrl = sanitizeStoreUrl(deal.url, storeLabel, deal.title);
+    const safeImg = sanitizeImageUrl(deal.image, storeLabel);
+
+    document.getElementById("popup-store-badge").textContent = storeLabel;
+    document.getElementById("popup-discount-badge").textContent = isFree
+        ? "FREEBIE (100% OFF)"
+        : `-${Number(deal.discount) || 0}% OFF`;
+
+    const imgEl = document.getElementById("popup-game-image");
+    imgEl.src = safeImg;
+    imgEl.alt = `${deal.title} cover art`;
+    imgEl.onerror = () => {
+        imgEl.onerror = null;
+        imgEl.src = getFallbackGameImage(storeLabel);
+    };
+
+    document.getElementById("popup-game-title").textContent = deal.title;
+    document.getElementById("popup-sale-price").textContent = isFree
+        ? "FREE"
+        : `$${Number(deal.sale_price).toFixed(2)}`;
+
+    const origEl = document.getElementById("popup-orig-price");
+    if (Number(deal.orig_price) > 0 && !isFree) {
+        origEl.textContent = `$${Number(deal.orig_price).toFixed(2)}`;
+        origEl.classList.remove("hidden");
+    } else {
+        origEl.classList.add("hidden");
+    }
+
+    document.getElementById("popup-source-meta").textContent = `Source: ${deal.author_email || "Community"}`;
+    document.getElementById("popup-game-description").textContent =
+        deal.note || "No additional description provided for this game offer.";
+
+    const linkEl = document.getElementById("popup-store-link");
+    linkEl.href = safeUrl;
+    linkEl.innerHTML = `${isFree ? "Claim Free on Store" : `Open ${storeLabel} Page`} <i class="fa-solid fa-arrow-up-right-from-square"></i>`;
+
+    openModal("game-info-modal");
+}
 
 /* -------------------------------------------------------------
    AUTHENTICATION (SUPABASE + LOCAL DEMO FALLBACK)
@@ -161,7 +372,6 @@ async function initAuthSession() {
             }
         });
     } else {
-        // Local Demo Auth fallback so testing works out-of-the-box before Supabase keys are added
         const savedDemoUser = localStorage.getItem("demoAuthUser");
         if (savedDemoUser) {
             setCurrentUser(JSON.parse(savedDemoUser));
@@ -211,7 +421,6 @@ async function handleAuthSubmit(e) {
                 closeModal("auth-modal");
             }
         } else {
-            // Demo mode fallback when Supabase keys haven't been entered yet
             const demoUser = { id: "demo-" + btoa(email), email };
             localStorage.setItem("demoAuthUser", JSON.stringify(demoUser));
             setCurrentUser(demoUser);
@@ -298,12 +507,11 @@ function loadStateFromStorage() {
 }
 
 /* -------------------------------------------------------------
-   COMMUNITY GAME DEALS LOGIC
+   GAME DEALS & FREEBIES LOGIC
    ------------------------------------------------------------- */
 async function loadGameDeals() {
-    // Load local custom deals first for offline stability
     const localDeals = JSON.parse(localStorage.getItem("communityGameDeals") || "[]");
-    let mergedDeals = [...localDeals, ...DEFAULT_GAME_DEALS];
+    let supabaseDeals = [];
 
     if (supabaseClient && navigator.onLine) {
         try {
@@ -313,14 +521,17 @@ async function loadGameDeals() {
                 .order("upvotes", { ascending: false });
 
             if (!error && data && data.length > 0) {
-                mergedDeals = data;
+                supabaseDeals = data;
             }
         } catch (err) {
             console.warn("Using cached/default game deals:", err.message);
         }
     }
 
-    state.gameDeals = mergedDeals;
+    const rapidDeals = await fetchAllRapidApiDealsAndFreebies();
+    const baseCommunityDeals = supabaseDeals.length > 0 ? supabaseDeals : DEFAULT_GAME_DEALS;
+
+    state.gameDeals = [...localDeals, ...rapidDeals, ...baseCommunityDeals];
     renderGameDeals();
 }
 
@@ -336,44 +547,66 @@ function renderGameDeals(storeFilter = "all", searchQuery = "") {
     });
 
     if (filtered.length === 0) {
-        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No game deals found matching your filter.</p>`;
+        grid.innerHTML = `<p style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 40px;">No game deals or freebies found matching your filter.</p>`;
         return;
     }
 
     filtered.forEach(deal => {
         const isVoted = state.upvotedDeals.has(String(deal.id));
+        const storeLabel = escapeHtml(deal.store);
+        const safeUrl = escapeHtml(sanitizeStoreUrl(deal.url, deal.store, deal.title));
+        const safeImg = escapeHtml(sanitizeImageUrl(deal.image, deal.store));
+        const isFree = Number(deal.sale_price) === 0 || Number(deal.discount) === 100;
+
         const card = document.createElement("article");
         card.className = "deal-card";
         card.innerHTML = `
-            <div>
+            <img class="deal-cover" src="${safeImg}" alt="${escapeHtml(deal.title)} cover" loading="lazy">
+            <div class="deal-body">
                 <div class="deal-top">
-                    <span class="store-pill">${escapeHtml(deal.store)}</span>
-                    <span class="discount-badge">-${deal.discount}% OFF</span>
+                    <span class="store-pill">${storeLabel}</span>
+                    <span class="discount-badge">${isFree ? "FREEBIE" : `-${Number(deal.discount) || 0}% OFF`}</span>
                 </div>
                 <h3 class="deal-title">${escapeHtml(deal.title)}</h3>
-                ${deal.note ? `<p class="deal-note">"${escapeHtml(deal.note)}"</p>` : ""}
+                ${deal.note ? `<p class="deal-note">${escapeHtml(deal.note)}</p>` : ""}
                 <div class="deal-meta">
-                    <i class="fa-solid fa-user-check"></i> Recommended by ${escapeHtml(deal.author_email || "Community Member")}
+                    <i class="fa-solid fa-circle-info"></i> Click card for full description
                 </div>
             </div>
             <div class="deal-footer">
                 <div class="price-box">
-                    <span class="sale-price">$${Number(deal.sale_price).toFixed(2)}</span>
-                    <span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>
+                    <span class="sale-price">${isFree ? "FREE" : `$${Number(deal.sale_price).toFixed(2)}`}</span>
+                    ${Number(deal.orig_price) > 0 && !isFree ? `<span class="orig-price">$${Number(deal.orig_price).toFixed(2)}</span>` : ""}
                 </div>
                 <div class="deal-actions">
-                    <button class="upvote-btn ${isVoted ? "voted" : ""}" data-id="${deal.id}" title="Upvote this deal">
+                    <button type="button" class="btn btn-outline btn-sm info-popup-btn" title="View game description">
+                        <i class="fa-solid fa-align-left"></i> Info
+                    </button>
+                    <button type="button" class="upvote-btn ${isVoted ? "voted" : ""}" data-id="${deal.id}" title="Upvote">
                         <i class="fa-solid fa-thumbs-up"></i> <span>${deal.upvotes || 0}</span>
                     </button>
-                    <a href="${escapeHtml(deal.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">
-                        Get Deal <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                    <a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm">
+                        ${isFree ? "Claim" : "Store"} <i class="fa-solid fa-arrow-up-right-from-square"></i>
                     </a>
                 </div>
             </div>
         `;
 
+        const imgEl = card.querySelector(".deal-cover");
+        imgEl.addEventListener("error", () => {
+            imgEl.src = getFallbackGameImage(deal.store);
+        });
+
+        card.addEventListener("click", (e) => {
+            if (e.target.closest("a") || e.target.closest(".upvote-btn")) return;
+            openGameDescriptionPopup(deal);
+        });
+
         const upvoteBtn = card.querySelector(".upvote-btn");
-        upvoteBtn.addEventListener("click", () => handleUpvoteDeal(deal.id));
+        upvoteBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            handleUpvoteDeal(deal.id);
+        });
 
         grid.appendChild(card);
     });
@@ -389,14 +622,20 @@ async function handleDealSubmit(e) {
         return;
     }
 
+    const store = document.getElementById("deal-store").value;
+    const title = document.getElementById("deal-title").value.trim();
+    const rawUrl = document.getElementById("deal-url").value.trim();
+    const rawImg = document.getElementById("deal-image").value.trim();
+
     const newDeal = {
         id: "deal-" + Date.now(),
-        title: document.getElementById("deal-title").value.trim(),
-        store: document.getElementById("deal-store").value,
+        title,
+        store,
         discount: parseInt(document.getElementById("deal-discount").value, 10),
         sale_price: parseFloat(document.getElementById("deal-sale-price").value),
         orig_price: parseFloat(document.getElementById("deal-orig-price").value),
-        url: document.getElementById("deal-url").value.trim(),
+        image: sanitizeImageUrl(rawImg, store),
+        url: sanitizeStoreUrl(rawUrl, store, title),
         note: document.getElementById("deal-note").value.trim(),
         author_email: state.currentUser.email,
         user_id: state.currentUser.id,
@@ -407,7 +646,7 @@ async function handleDealSubmit(e) {
 
     try {
         if (supabaseClient && navigator.onLine) {
-            const { id, ...dbPayload } = newDeal;
+            const { id, image, ...dbPayload } = newDeal;
             const { data, error } = await supabaseClient
                 .from("game_deals")
                 .insert([dbPayload])
@@ -583,7 +822,6 @@ function updateUI() {
    EVENT LISTENERS & MODALS
    ------------------------------------------------------------- */
 function setupEventListeners() {
-    // Top View Switcher (PC Setup Wizard vs Game Deals)
     document.querySelectorAll(".nav-tab").forEach(tab => {
         tab.addEventListener("click", () => {
             document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
@@ -596,7 +834,9 @@ function setupEventListeners() {
         });
     });
 
-    // Auth Modal Controls
+    document.getElementById("close-game-info-modal").addEventListener("click", () => closeModal("game-info-modal"));
+    document.getElementById("popup-close-btn").addEventListener("click", () => closeModal("game-info-modal"));
+
     document.getElementById("open-auth-modal-btn").addEventListener("click", () => openModal("auth-modal"));
     document.getElementById("close-auth-modal").addEventListener("click", () => closeModal("auth-modal"));
     document.getElementById("sign-out-btn").addEventListener("click", handleSignOut);
@@ -609,13 +849,12 @@ function setupEventListeners() {
             state.authMode = btn.dataset.mode;
 
             const isSignUp = state.authMode === "signup";
-            document.getElementById("auth-modal-title").textContent = isSignUp ? "Create an Account" : "Sign In to AutoSetup PC";
+            document.getElementById("auth-modal-title").textContent = isSignUp ? "Create an Account" : "Sign In to BLUE ROCKET";
             document.getElementById("auth-submit-btn").textContent = isSignUp ? "Create Account" : "Sign In";
             document.getElementById("auth-message").classList.add("hidden");
         });
     });
 
-    // Share Game Deal Modal Controls
     document.getElementById("open-deal-modal-btn").addEventListener("click", () => {
         if (!state.currentUser) {
             openModal("auth-modal");
@@ -628,14 +867,12 @@ function setupEventListeners() {
     document.getElementById("close-deal-modal").addEventListener("click", () => closeModal("deal-modal"));
     document.getElementById("deal-form").addEventListener("submit", handleDealSubmit);
 
-    // Close modal on backdrop click
     document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
         backdrop.addEventListener("click", () => {
             backdrop.closest(".modal").classList.add("hidden");
         });
     });
 
-    // Game Deal Search & Store Filters
     document.getElementById("deal-search").addEventListener("input", (e) => {
         renderGameDeals(getCurrentStoreFilter(), e.target.value);
     });
@@ -648,7 +885,6 @@ function setupEventListeners() {
         });
     });
 
-    // Wizard Navigation
     document.getElementById("next-btn").addEventListener("click", () => {
         if (state.currentStep < 4) {
             state.currentStep++;
@@ -670,7 +906,6 @@ function setupEventListeners() {
         });
     });
 
-    // Presets Click
     document.querySelectorAll(".preset-card").forEach(card => {
         card.addEventListener("click", () => {
             const presetKey = card.dataset.preset;
@@ -685,7 +920,6 @@ function setupEventListeners() {
         });
     });
 
-    // GPU Radios
     document.querySelectorAll('input[name="gpu"]').forEach(radio => {
         radio.addEventListener("change", (e) => {
             state.selectedGpu = e.target.value;
@@ -693,12 +927,10 @@ function setupEventListeners() {
         });
     });
 
-    // GPU Guide Accordion
     document.getElementById("toggle-gpu-guide-btn").addEventListener("click", () => {
         document.getElementById("gpu-guide-content").classList.toggle("hidden");
     });
 
-    // App Category Filters & Search
     document.querySelectorAll("#category-filters .filter-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             document.querySelectorAll("#category-filters .filter-btn").forEach(b => b.classList.remove("active"));
@@ -711,7 +943,6 @@ function setupEventListeners() {
         renderAppGrid(getCurrentCategoryFilter(), e.target.value);
     });
 
-    // Script Format Tabs
     document.querySelectorAll(".tab-btn").forEach(btn => {
         btn.addEventListener("click", () => {
             document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -721,7 +952,6 @@ function setupEventListeners() {
         });
     });
 
-    // Reset All Button
     document.getElementById("reset-btn").addEventListener("click", () => {
         if (confirm("Reset all selections and start over?")) {
             state.selectedApps.clear();
@@ -733,7 +963,6 @@ function setupEventListeners() {
         }
     });
 
-    // Script Copy & Download
     document.getElementById("copy-script-btn").addEventListener("click", copyScriptToClipboard);
     document.getElementById("download-script-btn").addEventListener("click", downloadScriptFile);
 }
@@ -764,36 +993,17 @@ function generateScriptOutput() {
     let scriptText = "";
 
     if (state.activeFormat === "ps1") {
-        scriptText = `# AutoSetup PC - Automated Windows Installation Script
-`;
-        scriptText += `# Generated on: ${new Date().toLocaleDateString()}
-
-`;
-        scriptText += `Write-Host "Starting automated application installation..." -ForegroundColor Green
-
-`;
+        scriptText = `# BLUE ROCKET (AutoSetup PC) - Automated Windows Installation Script\n# Generated on: ${new Date().toLocaleDateString()}\n\nWrite-Host "Starting automated application installation..." -ForegroundColor Cyan\n\n`;
         allPackages.forEach(pkg => {
-            scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements
-`;
+            scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
         });
-        scriptText += `
-Write-Host "All applications installed successfully!" -ForegroundColor Green`;
+        scriptText += `\nWrite-Host "All applications installed successfully!" -ForegroundColor Cyan`;
     } else if (state.activeFormat === "bat") {
-        scriptText = `@echo off
-`;
-        scriptText += `REM AutoSetup PC - Batch Installer
-
-`;
-        scriptText += `echo Starting automated application installation...
-
-`;
+        scriptText = `@echo off\nREM BLUE ROCKET (AutoSetup PC) - Batch Installer\n\necho Starting automated application installation...\n\n`;
         allPackages.forEach(pkg => {
-            scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements
-`;
+            scriptText += `winget install --id "${pkg}" -e --silent --accept-package-agreements --accept-source-agreements\n`;
         });
-        scriptText += `
-echo All setup tasks completed!
-pause`;
+        scriptText += `\necho All setup tasks completed!\npause`;
     } else if (state.activeFormat === "cmd") {
         scriptText = allPackages.map(pkg => `winget install --id "${pkg}" -e --silent`).join(" && ");
     }
@@ -817,7 +1027,7 @@ function downloadScriptFile() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `pc-setup-installer.${ext}`;
+    a.download = `blue-rocket-setup.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
